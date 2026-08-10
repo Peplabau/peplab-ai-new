@@ -1,0 +1,355 @@
+import { useEffect, useState } from 'react';
+import { Send, ArrowLeft, MessageCircle, Clock, MapPin, ExternalLink, Mail } from 'lucide-react';
+import { CONFIG } from '@/lib/config';
+import { SEO } from '@/components/SEO';
+import { getSiteSetting, DEFAULT_SUPPORT_LINKS } from '@/lib/settings';
+
+export default function Contact() {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    subject: '',
+    message: '',
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSent, setIsSent] = useState(false);
+  const [telegramLink, setTelegramLink] = useState<string>(
+    DEFAULT_SUPPORT_LINKS.telegram_link || CONFIG.SOCIAL.TELEGRAM,
+  );
+  const [whatsappLink, setWhatsappLink] = useState<string>(DEFAULT_SUPPORT_LINKS.whatsapp_link);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [telegramVal, whatsappVal] = await Promise.all([
+          getSiteSetting<{ url: string }>('telegram_link', {
+            url: DEFAULT_SUPPORT_LINKS.telegram_link,
+          }),
+          getSiteSetting<{ url: string }>('whatsapp_link', {
+            url: DEFAULT_SUPPORT_LINKS.whatsapp_link,
+          }),
+        ]);
+        if (cancelled) return;
+        setTelegramLink(telegramVal?.url || DEFAULT_SUPPORT_LINKS.telegram_link);
+        setWhatsappLink(
+          typeof whatsappVal?.url === 'string' && whatsappVal.url.trim()
+            ? whatsappVal.url
+            : DEFAULT_SUPPORT_LINKS.whatsapp_link,
+        );
+      } catch {
+        /* keep defaults */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Form submissions open Telegram with a clipboard-ready message.
+  // Support email is also listed for direct contact.
+  // We open the Telegram chat in a new tab; the user pastes the message they
+  // just typed into that chat.
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      const composedMessage = [
+        formData.subject ? `Subject: ${formData.subject}` : null,
+        formData.name ? `Name: ${formData.name}` : null,
+        formData.email ? `Reply-to: ${formData.email}` : null,
+        '',
+        formData.message,
+      ]
+        .filter((line) => line !== null)
+        .join('\n');
+
+      try {
+        await navigator.clipboard?.writeText(composedMessage);
+      } catch {
+        // Clipboard may be blocked (permissions / http). Ignore — the user can
+        // retype the message in Telegram. The success screen explains this.
+      }
+
+      window.open(telegramLink, '_blank', 'noopener,noreferrer');
+    } finally {
+      setIsSubmitting(false);
+      setIsSent(true);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const mapsQuery = encodeURIComponent(CONFIG.BUSINESS.ADDRESS_LINES.join(', '));
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`;
+
+  return (
+    <>
+      <SEO
+        title="Contact PEPLAB | Peptides Australia"
+        description="Contact PEPLAB for order support, product questions, and research enquiries. Australian peptide supplier — Mon–Fri response."
+      />
+    <div className="min-h-screen" style={{ background: '#070A12' }}>
+      {/* Grid Overlay */}
+      <div className="absolute inset-0 grid-overlay opacity-60" />
+
+      {/* Navigation */}
+      <nav className="relative z-50 px-6 lg:px-12 py-6">
+        <div className="flex items-center justify-between">
+          <a href="/" className="flex flex-col items-start">
+            <span className="text-3xl lg:text-4xl font-bold tracking-[0.12em] gradient-text leading-none">
+              PEPLAB
+            </span>
+            <span className="text-xs lg:text-sm font-mono uppercase tracking-[0.5em] text-[#8B5CF6] mt-0.5">
+              PEPTIDES AUSTRALIA
+            </span>
+          </a>
+          <a
+            href="/"
+            className="flex items-center gap-2 text-sm text-[#A9B3C7] hover:text-[#F4F6FA] transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Shop
+          </a>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <main className="relative z-10 px-6 lg:px-12 py-12 lg:py-20">
+        <div className="max-w-5xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-12">
+            <span className="eyebrow mb-4 block">GET IN TOUCH</span>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#F4F6FA] mb-4">
+              Contact <span className="gradient-text">Us</span>
+            </h1>
+            <p className="text-base sm:text-lg text-[#A9B3C7] max-w-xl mx-auto">
+              Have questions about our peptides? Our team is here to help with your research needs.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Contact Info */}
+            <div className="lg:col-span-1 space-y-6">
+              <div className="p-5 rounded-2xl bg-[rgba(17,24,39,0.6)] border border-[rgba(244,246,250,0.08)]">
+                <div className="w-10 h-10 rounded-xl bg-[rgba(0,136,204,0.1)] flex items-center justify-center mb-3">
+                  <Send className="w-5 h-5 text-[#0088CC]" />
+                </div>
+                <h3 className="text-sm font-bold text-[#F4F6FA] mb-1">Telegram support</h3>
+                <p className="text-xs text-[#A9B3C7] mb-2">Fastest way to reach us — replies typically within a few hours.</p>
+                <a
+                  href={telegramLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-[#0088CC] hover:underline break-all"
+                >
+                  @PeplabSupport
+                </a>
+              </div>
+
+              {whatsappLink ? (
+                <div className="p-5 rounded-2xl bg-[rgba(17,24,39,0.6)] border border-[rgba(244,246,250,0.08)]">
+                  <div className="w-10 h-10 rounded-xl bg-[rgba(34,197,94,0.1)] flex items-center justify-center mb-3">
+                    <MessageCircle className="w-5 h-5 text-[#22C55E]" />
+                  </div>
+                  <h3 className="text-sm font-bold text-[#F4F6FA] mb-1">WhatsApp / Phone</h3>
+                  <p className="text-xs text-[#A9B3C7] mb-2">Chat or call — {CONFIG.BUSINESS.PHONE_DISPLAY || '+61 435 717 401'}</p>
+                  <a
+                    href={whatsappLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-[#22C55E] hover:underline break-all"
+                  >
+                    Open WhatsApp
+                  </a>
+                  {CONFIG.BUSINESS.PHONE_TEL ? (
+                    <a
+                      href={`tel:${CONFIG.BUSINESS.PHONE_TEL}`}
+                      className="mt-2 block text-sm text-[#A9B3C7] hover:text-[#F4F6FA] break-all"
+                    >
+                      {CONFIG.BUSINESS.PHONE_DISPLAY || CONFIG.BUSINESS.PHONE_TEL}
+                    </a>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {(CONFIG.SUPPORT_EMAIL || CONFIG.CONTACT_EMAIL) && (
+                <div className="p-5 rounded-2xl bg-[rgba(17,24,39,0.6)] border border-[rgba(244,246,250,0.08)]">
+                  <div className="w-10 h-10 rounded-xl bg-[rgba(46,209,180,0.1)] flex items-center justify-center mb-3">
+                    <Mail className="w-5 h-5 text-[#2ED1B4]" />
+                  </div>
+                  <h3 className="text-sm font-bold text-[#F4F6FA] mb-1">Email</h3>
+                  <p className="text-xs text-[#A9B3C7] mb-2">For written enquiries — we typically reply within 24–48 hours.</p>
+                  <a
+                    href={`mailto:${CONFIG.SUPPORT_EMAIL || CONFIG.CONTACT_EMAIL}`}
+                    className="text-sm text-[#2ED1B4] hover:underline break-all"
+                  >
+                    {CONFIG.SUPPORT_EMAIL || CONFIG.CONTACT_EMAIL}
+                  </a>
+                </div>
+              )}
+
+              <div className="p-5 rounded-2xl bg-[rgba(17,24,39,0.6)] border border-[rgba(244,246,250,0.08)]">
+                <div className="w-10 h-10 rounded-xl bg-[rgba(59,130,246,0.1)] flex items-center justify-center mb-3">
+                  <MapPin className="w-5 h-5 text-[#3B82F6]" />
+                </div>
+                <h3 className="text-sm font-bold text-[#F4F6FA] mb-1">Address</h3>
+                <address className="text-sm text-[#A9B3C7] not-italic leading-relaxed mb-2">
+                  {CONFIG.BUSINESS.ADDRESS_LINES.map((line) => (
+                    <span key={line} className="block">{line}</span>
+                  ))}
+                </address>
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs text-[#2ED1B4] hover:underline"
+                >
+                  View on map
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-[rgba(17,24,39,0.6)] border border-[rgba(244,246,250,0.08)]">
+                <div className="w-10 h-10 rounded-xl bg-[rgba(139,92,246,0.1)] flex items-center justify-center mb-3">
+                  <Clock className="w-5 h-5 text-[#8B5CF6]" />
+                </div>
+                <h3 className="text-sm font-bold text-[#F4F6FA] mb-1">Response Time</h3>
+                <p className="text-sm text-[#A9B3C7]">Within 24-48 hours</p>
+              </div>
+            </div>
+
+            {/* Contact Form */}
+            <div className="lg:col-span-2">
+              <div className="p-6 sm:p-8 rounded-2xl bg-[rgba(17,24,39,0.6)] border border-[rgba(244,246,250,0.08)]">
+                {isSent ? (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 mx-auto rounded-full bg-[rgba(0,136,204,0.15)] flex items-center justify-center mb-4">
+                      <Send className="w-8 h-8 text-[#0088CC]" />
+                    </div>
+                    <h3 className="text-xl font-bold text-[#F4F6FA] mb-2">Telegram opened</h3>
+                    <p className="text-sm text-[#A9B3C7] mb-2">
+                      We&apos;ve opened our Telegram chat in a new tab and copied your message to the clipboard —
+                      just paste it there and hit send.
+                    </p>
+                    <p className="text-xs text-[#A9B3C7] mb-6">
+                      If the new tab didn&apos;t open,{' '}
+                      <a
+                        href={telegramLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#0088CC] hover:underline"
+                      >
+                        open Telegram support here
+                      </a>
+                      .
+                    </p>
+                    <button
+                      onClick={() => {
+                        setIsSent(false);
+                        setFormData({ name: '', email: '', subject: '', message: '' });
+                      }}
+                      className="btn-outline"
+                    >
+                      Send Another Message
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSubmit} className="space-y-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <div>
+                        <label className="block text-sm text-[#A9B3C7] mb-2">Name</label>
+                        <input
+                          type="text"
+                          name="name"
+                          value={formData.name}
+                          onChange={handleChange}
+                          required
+                          className="w-full px-4 py-3 rounded-xl bg-[rgba(7,10,18,0.5)] border border-[rgba(244,246,250,0.1)] text-[#F4F6FA] placeholder-[#A9B3C7] focus:outline-none focus:border-[#2ED1B4] transition-colors"
+                          placeholder="Your name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-[#A9B3C7] mb-2">Email</label>
+                        <input
+                          type="email"
+                          name="email"
+                          value={formData.email}
+                          onChange={handleChange}
+                          required
+                          className="w-full px-4 py-3 rounded-xl bg-[rgba(7,10,18,0.5)] border border-[rgba(244,246,250,0.1)] text-[#F4F6FA] placeholder-[#A9B3C7] focus:outline-none focus:border-[#2ED1B4] transition-colors"
+                          placeholder="your@email.com"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm text-[#A9B3C7] mb-2">Subject</label>
+                      <select
+                        name="subject"
+                        value={formData.subject}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 rounded-xl bg-[rgba(7,10,18,0.5)] border border-[rgba(244,246,250,0.1)] text-[#F4F6FA] focus:outline-none focus:border-[#2ED1B4] transition-colors appearance-none cursor-pointer"
+                      >
+                        <option value="" className="bg-[#111827]">Select a subject</option>
+                        <option value="Product Inquiry" className="bg-[#111827]">Product Inquiry</option>
+                        <option value="Order Status" className="bg-[#111827]">Order Status</option>
+                        <option value="Shipping Question" className="bg-[#111827]">Shipping Question</option>
+                        <option value="General Support" className="bg-[#111827]">General Support</option>
+                        <option value="Other" className="bg-[#111827]">Other</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm text-[#A9B3C7] mb-2">Message</label>
+                      <textarea
+                        name="message"
+                        value={formData.message}
+                        onChange={handleChange}
+                        required
+                        rows={5}
+                        className="w-full px-4 py-3 rounded-xl bg-[rgba(7,10,18,0.5)] border border-[rgba(244,246,250,0.1)] text-[#F4F6FA] placeholder-[#A9B3C7] focus:outline-none focus:border-[#2ED1B4] transition-colors resize-none"
+                        placeholder="How can we help you?"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full btn-primary flex items-center justify-center gap-2"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-[#070A12] border-t-transparent rounded-full animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4" />
+                          Send Message
+                        </>
+                      )}
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="relative z-10 px-6 lg:px-12 py-8 border-t border-[rgba(244,246,250,0.08)]">
+        <div className="max-w-5xl mx-auto text-center">
+          <p className="text-xs text-[#A9B3C7]">
+            © 2026 PEPLAB. All rights reserved. For research use only.
+          </p>
+        </div>
+      </footer>
+    </div>
+    </>
+  );
+}
