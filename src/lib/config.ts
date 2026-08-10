@@ -61,7 +61,7 @@ export const CONFIG = {
   },
 
   // Site Info — canonical domain for THIS deployment (.com.au project default).
-  SITE_URL: import.meta.env.VITE_SITE_URL || 'https://peplab.com.au',
+  SITE_URL: import.meta.env.VITE_SITE_URL || 'https://peplab.ai',
   SITE_NAME: 'PEPLAB - Peptides Australia',
   SITE_DESCRIPTION: 'Premium Peptides Australia for research. Lab-tested, fast shipping, exceptional quality.',
   /** Browser tab, Apple touch, and structured-data logo (file in /public). */
