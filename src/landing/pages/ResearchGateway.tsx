@@ -23,6 +23,7 @@ import LandingFooter from '@/landing/components/LandingFooter';
 import { getStaticProducts } from '@/landing/lib/static-data';
 import { coaArchiveUrl, shopPageUrl } from '@/landing/lib/site';
 import { siteHostname } from '@/lib/domain';
+import TrustpilotReviews from '@/sections/TrustpilotReviews';
 
 const COUNT_DURATION = 1.75;
 const COUNT_BASE_DELAY = 0.55;
@@ -896,8 +897,8 @@ function ResearchHero() {
       if (card) {
         gsap.fromTo(
           card,
-          { x: 48, opacity: 0 },
-          { x: 0, opacity: 1, duration: 1.05, delay: 0.25, ease: 'power3.out', clearProps: 'transform' },
+          { y: 36, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.9, delay: 0.05, ease: 'power3.out', clearProps: 'transform' },
         );
       }
 
@@ -941,7 +942,12 @@ function ResearchHero() {
 
       <div className="nl-container relative z-10 flex flex-col min-h-0">
         <div className="rg-hero-grid nl-hero-grid grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10 flex-1">
-          <div className="rg-hero-copy lg:pr-4">
+          {/* Certificate first — top on mobile, left on desktop */}
+          <div className="rg-hero-visual nl-hero-visual relative flex flex-col items-center w-full">
+            <CoaSlideDeck pathRef={pathRef} />
+          </div>
+
+          <div className="rg-hero-copy lg:pl-4">
             <p className="rg-hero-eyebrow rg-hero-reveal">
               <span className="rg-hero-eyebrow-dot" aria-hidden />
               <WriteInText text="Peptides Australia" delay={0.08} charDelay={0.022} />
@@ -976,10 +982,6 @@ function ResearchHero() {
                 <ArrowRight className="w-4 h-4 rg-btn-arrow" />
               </a>
             </div>
-          </div>
-
-          <div className="rg-hero-visual nl-hero-visual relative flex flex-col items-center w-full">
-            <CoaSlideDeck pathRef={pathRef} />
           </div>
         </div>
 
@@ -1062,6 +1064,10 @@ export default function ResearchGateway() {
         <ResearchHero />
 
         <VerificationSection />
+
+        <div className="rg-trustpilot-wrap">
+          <TrustpilotReviews variant="landing" />
+        </div>
 
         <PeptideKnowledgeSection />
 
