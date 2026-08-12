@@ -137,11 +137,10 @@ export default function TrustpilotReviews({ variant = 'home' }: TrustpilotReview
           <div ref={headerRef} className="rg-section-header">
             <p className="rg-eyebrow">Trustpilot</p>
             <h2 className="rg-heading">
-              Verified reviews from{' '}
-              <span className="gradient-text">real customers</span>
+              What customers say on <span className="gradient-text">Trustpilot</span>
             </h2>
             <p className="rg-lead mx-auto">
-              Live Trustpilot score and feedback — the same proof labs check before they order.
+              Independent reviews — the same score and feedback you can verify on Trustpilot.
             </p>
 
             {displayScore && (

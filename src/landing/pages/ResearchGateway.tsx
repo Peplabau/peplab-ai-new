@@ -1,335 +1,168 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject, type TouchEvent } from 'react';
+/**
+ * Research Gateway — premium editorial landing for /landing.
+ * Homepage design language (Sora/Inter/IBM Plex Mono, dark grid bg, brand violet accent)
+ * with a bento proof grid, batch marquee, and oversized display type.
+ */
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import {
   ArrowRight,
-  Beaker,
+  ArrowUpRight,
   Check,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Dna,
   FlaskConical,
-  Layers,
-  Scale,
-  Shield,
+  ShieldCheck,
   Truck,
 } from 'lucide-react';
 import CountUp from '@/landing/components/new-landing/CountUp';
 import OzcaniumAnalyticsName from '@/components/OzcaniumAnalyticsName';
-import WriteInText from '@/landing/components/new-landing/WriteInText';
 import { SEO } from '@/landing/components/SEO';
 import { RESEARCH_GATEWAY_SEO } from '@/landing/lib/seo-keywords';
 import LandingFooter from '@/landing/components/LandingFooter';
-import { getStaticProducts } from '@/landing/lib/static-data';
 import { coaArchiveUrl, shopPageUrl } from '@/landing/lib/site';
-import { siteHostname } from '@/lib/domain';
 import TrustpilotReviews from '@/sections/TrustpilotReviews';
 
-const COUNT_DURATION = 1.75;
-const COUNT_BASE_DELAY = 0.55;
+gsap.registerPlugin(ScrollTrigger);
+
 const BATCH_NO = 'BN88LAB';
+const LAB_TAB_ADVANCE_MS = 6000;
 
-const COA_TEST_CARDS = [
-  {
-    id: 'hplc',
-    title: 'HPLC Purity',
-    result: '99.20%',
-    note: 'Area % by RP-HPLC',
-  },
-  {
-    id: 'lcms',
-    title: 'LC-MS Identity',
-    result: 'Confirmed',
-    note: 'MW matches expected sequence',
-  },
-  {
-    id: 'assay',
-    title: 'Content Assay',
-    result: '10.2mg',
-    note: 'Net peptide vs 10mg label',
-  },
+const TICKER = [
+  { id: 'BN88LAB · Lot A', v: 'HPLC 99.20% · LC-MS pass · 10.2mg' },
+  { id: 'BN88LAB · Lot B', v: 'HPLC 99.42% · LC-MS pass · 10.1mg' },
+  { id: 'BN88LAB · Lot C', v: 'HPLC 99.68% · LC-MS pass · 10.3mg' },
+  { id: 'BN88LAB · Lot D', v: 'HPLC 99.31% · LC-MS pass · 10.0mg' },
+  { id: 'BN88LAB · Lot E', v: 'HPLC 99.55% · LC-MS pass · 10.2mg' },
 ] as const;
 
-const HERO_META_STATS = [
-  { icon: Shield, kind: 'count' as const, end: 99, prefix: '≥', suffix: '%', label: 'Purity' },
-  { icon: Beaker, kind: 'text' as const, value: 'HPLC', label: 'Tested' },
-  { icon: Layers, kind: 'count' as const, end: 60, suffix: '+', label: 'Batches' },
-  { icon: Truck, kind: 'text' as const, value: 'AusPost', label: 'Express' },
+const PROCESS = [
+  { n: '01', title: 'Sampled', text: 'Material pulled from the production lot before it is ever listed.' },
+  { n: '02', title: 'Tested', text: 'HPLC purity, LC-MS identity, and content assay — independent lab.' },
+  { n: '03', title: 'Published', text: 'All three results issued under one batch ID in the public archive.' },
+  { n: '04', title: 'Shipped', text: 'Same ID on your dispatch note. Audit the exact lot you received.' },
 ] as const;
-
-const TICKER_ITEMS = [
-  { id: 'Batch BN88LAB · Lot A', hplc: '99.20%', lcms: 'LC-MS pass', assay: '10.2mg' },
-  { id: 'Batch BN88LAB · Lot B', hplc: '99.42%', lcms: 'LC-MS pass', assay: '10.1mg' },
-  { id: 'Batch BN88LAB · Lot C', hplc: '99.68%', lcms: 'LC-MS pass', assay: '10.3mg' },
-  { id: 'Batch BN88LAB · Lot D', hplc: '99.31%', lcms: 'LC-MS pass', assay: '10.0mg' },
-  { id: 'Batch BN88LAB · Lot E', hplc: '99.55%', lcms: 'LC-MS pass', assay: '10.2mg' },
-] as const;
-
-const COA_SLIDE_COUNT = 5;
-const COA_AUTO_ADVANCE_MS = 5000;
-
-const PEPTIDE_KNOWLEDGE = [
-  {
-    icon: Beaker,
-    title: 'Research peptides',
-    text: 'Synthetic sequences for in-vitro work — binding assays, cell culture, method validation. Supplied as research material only, not for injection or oral use.',
-  },
-  {
-    icon: FlaskConical,
-    title: 'Why we run three tests',
-    text: 'HPLC gives you purity. It does not confirm the sequence is correct or that the vial contains the fill weight on the label. LC-MS and a content assay cover those gaps.',
-  },
-  {
-    icon: Layers,
-    title: 'Matching batch to COA',
-    text: 'Your dispatch note lists a batch ID. Look that number up in our COA archive — the HPLC, LC-MS, and assay figures on the certificate should match the lot you received.',
-  },
-  {
-    icon: Shield,
-    title: 'After it arrives',
-    text: 'Store lyophilised peptide at −20°C or colder until reconstitution. Handle under your lab SOPs. The COA goes in your records; it does not change the research-only status of the material.',
-  },
-] as const;
-
-const APPROACH = [
-  {
-    icon: FlaskConical,
-    title: 'HPLC purity',
-    text: 'Reverse-phase HPLC reports area-% purity. Most labs check this line first — we publish the raw figure on every batch COA, not a rounded marketing number.',
-  },
-  {
-    icon: Dna,
-    title: 'LC-MS identity',
-    text: 'Mass spec confirms observed molecular weight against the ordered sequence. Catches synthesis errors and label mix-ups that a clean chromatogram alone would not.',
-  },
-  {
-    icon: Scale,
-    title: 'Content assay',
-    text: 'Quantitative assay for net peptide in the vial. If the label says 10mg, the assay should read close to that — separate from how pure the sample is.',
-  },
-] as const;
-
-const VERIFY_STEPS = [
-  {
-    step: '01',
-    title: 'HPLC run',
-    text: 'Sample tested by RP-HPLC. Batches below our ≥99% cut-off are rejected. The percentage on your COA is the lab result — we do not adjust it.',
-  },
-  {
-    step: '02',
-    title: 'LC-MS check',
-    text: 'Molecular weight verified against the expected sequence. Any mismatch stops the batch before it is listed or shipped.',
-  },
-  {
-    step: '03',
-    title: 'Content assay',
-    text: 'Net peptide quantity measured against the stated fill. A 10mg vial should assay near 10mg — not 7mg of a 99% pure compound.',
-  },
-  {
-    step: '04',
-    title: 'COA issued',
-    text: 'All three results compiled under one batch ID and posted to the archive. Same ID prints on your dispatch paperwork.',
-  },
-] as const;
-
-const COMPARE_ROWS: { id: string; label: ReactNode; us: boolean; them: boolean }[] = [
-  { id: 'hplc', label: 'HPLC purity % on every COA', us: true, them: false },
-  { id: 'lcms', label: 'LC-MS identity verification', us: true, them: false },
-  { id: 'assay', label: 'Peptide content assay (dose check)', us: true, them: false },
-  { id: 'batch', label: 'Batch-specific COA per shipment', us: true, them: false },
-  {
-    id: 'lab',
-    label: (
-      <>
-        Independent third-party lab (<OzcaniumAnalyticsName />)
-      </>
-    ),
-    us: true,
-    them: false,
-  },
-  { id: 'public', label: 'Public COA access before you order', us: true, them: false },
-];
 
 const FAQ = [
   {
-    id: 'what-are-peptides',
-    q: 'What are research peptides?',
-    a: 'Short amino acid chains made for lab use — binding studies, cell assays, reference standards. They are not medicines, supplements, or products for human or animal use.',
-  },
-  {
-    id: 'storage',
-    q: 'How should I store them?',
-    a: 'Keep lyophilised material at −20°C or below until you reconstitute. After that, follow your lab\'s own handling and expiry rules. We ship with a batch COA for your records.',
-  },
-  {
     id: 'hplc',
-    q: 'What does the HPLC line on the COA mean?',
-    a: 'It is the area-% purity from reverse-phase HPLC — e.g. 99.20% means that fraction of the integrated peak is your target peptide. We will not release a batch below ≥99%.',
+    q: 'What does the HPLC line mean?',
+    a: 'It is the purity of the main peak as area-% on reverse-phase HPLC. We publish the lab figure — we do not round it for marketing.',
   },
   {
-    id: 'verify-coa',
+    id: 'match',
     q: 'How do I match my order to a COA?',
-    a: 'The batch number on your dispatch note is the link. Search that ID in our COA archive — you should see HPLC, LC-MS, and assay results for that exact lot.',
+    a: 'Your dispatch note lists a batch ID. Search that ID in the COA archive — HPLC, LC-MS, and assay should match the lot you received.',
   },
   {
-    id: 'lcms',
-    q: 'What does LC-MS add that HPLC does not?',
-    a: 'HPLC tells you how clean the sample is. LC-MS tells you the molecular weight matches what you ordered — so you know the sequence is right, not just the purity.',
+    id: 'three',
+    q: 'Why three tests instead of one?',
+    a: 'HPLC alone proves purity of whatever is in the vial — not that it is the right sequence, or the labelled amount. LC-MS and the content assay close those gaps.',
   },
   {
-    id: 'assay',
-    q: 'What is the content assay?',
-    a: 'A separate measurement of how much peptide is actually in the vial versus the label claim. A 99% pure sample can still be under-filled; the assay catches that.',
-  },
-  {
-    id: 'research-only',
-    q: 'Why research-only?',
-    a: 'These materials are for in-vitro laboratory work. We do not make medical or performance claims. COAs are for traceability in your lab documentation.',
-  },
-  {
-    id: 'shipping',
-    q: 'Do you ship outside Australia?',
-    a: 'No — Australia only. Domestic dispatch lets us run Mon–Fri same-day cut-offs on AusPost Express and keep support response times consistent.',
+    id: 'use',
+    q: 'Is this for human use?',
+    a: 'No. These materials are for in-vitro laboratory research only. COAs support lab documentation, not medical claims.',
   },
 ] as const;
 
-function HplcChart({ pathRef }: { pathRef: RefObject<SVGPathElement | null> }) {
-  return (
-    <div className="rg-hplc-chart" aria-hidden>
-      <svg viewBox="0 0 360 110" className="w-full h-full" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="rg-hplc-line" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#8B5CF6" />
-            <stop offset="55%" stopColor="#A855F7" />
-            <stop offset="100%" stopColor="#EC4899" />
-          </linearGradient>
-        </defs>
-        <text x="4" y="12" fill="#6B7280" fontSize="7" fontWeight="600">
-          MAU
-        </text>
-        <text x="320" y="108" fill="#6B7280" fontSize="7" fontWeight="600">
-          RT (MIN)
-        </text>
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-          <line
-            key={n}
-            x1={(n - 1) * 40 + 20}
-            y1="18"
-            x2={(n - 1) * 40 + 20}
-            y2="92"
-            stroke="rgba(244,246,250,0.05)"
-            strokeWidth="1"
-          />
-        ))}
-        <line x1="0" y1="92" x2="360" y2="92" stroke="rgba(244,246,250,0.1)" strokeWidth="1" />
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-          <text
-            key={`x-${n}`}
-            x={(n - 1) * 40 + 20}
-            y="104"
-            textAnchor="middle"
-            fill="#6B7280"
-            fontSize="6"
-          >
-            {n}
-          </text>
-        ))}
-        <path
-          ref={pathRef}
-          d="M0,92 L52,92 L68,24 L82,92 L320,92"
-          fill="none"
-          stroke="url(#rg-hplc-line)"
-          strokeWidth="2.5"
-          strokeLinejoin="round"
-        />
-        <rect x="158" y="14" width="34" height="15" rx="3" fill="rgba(244,246,250,0.08)" />
-        <text x="175" y="25" textAnchor="middle" fill="#F4F6FA" fontSize="7" fontWeight="700">
-          MAIN
-        </text>
-        <rect
-          x="188"
-          y="32"
-          width="96"
-          height="18"
-          rx="4"
-          fill="rgba(139,92,246,0.18)"
-          stroke="rgba(139,92,246,0.45)"
-          strokeWidth="1"
-        />
-        <text x="236" y="44" textAnchor="middle" fill="#C4B5FD" fontSize="7" fontWeight="600">
-          Peak 1 · RT 5.63 · 99.20%
-        </text>
-      </svg>
-    </div>
-  );
-}
+/* ————— Lab data panel — tabbed charts ————— */
+const LAB_TABS = [
+  { id: 'hplc', label: 'HPLC', figure: '99.20', unit: '%', note: 'Main peak area · RT 5.63 min' },
+  { id: 'lcms', label: 'LC-MS', figure: 'Pass', unit: '', note: 'Observed MW matches expected sequence' },
+  { id: 'assay', label: 'Assay', figure: '10.2', unit: 'mg', note: 'Net peptide vs 10 mg label claim' },
+] as const;
 
-function CoaTestCards() {
+/** RP-HPLC chromatogram — dominant main peak + trace impurities. */
+function HplcChart() {
   return (
-    <div className="rg-coa-tests" aria-label="COA test results">
-      {COA_TEST_CARDS.map((test) => (
-        <article key={test.id} className="rg-coa-test-card">
-          <div className="rg-coa-test-copy">
-            <span className="rg-coa-test-title">{test.title}</span>
-            <span className="rg-coa-test-note">{test.note}</span>
-          </div>
-          <div className="rg-coa-test-result-wrap">
-            <span className="rg-coa-test-result">{test.result}</span>
-            <span className="rg-coa-test-pass ">
-              <Check className="w-3 h-3 text-[#36ea51]" strokeWidth={2.5} />
-              Pass
-            </span>
-          </div>
-        </article>
+    <svg className="ra-chart" viewBox="0 0 480 210" preserveAspectRatio="none" aria-hidden>
+      <defs>
+        <linearGradient id="ra-hplc-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="rgba(139,92,246,0.35)" />
+          <stop offset="100%" stopColor="rgba(139,92,246,0)" />
+        </linearGradient>
+      </defs>
+      {[40, 80, 120, 160].map((y) => (
+        <line key={y} x1="0" y1={y} x2="480" y2={y} className="ra-chart-grid" />
       ))}
-    </div>
+      <path
+        className="ra-chart-area"
+        fill="url(#ra-hplc-fill)"
+        stroke="none"
+        d="M0,186 L58,186 C70,186 74,170 84,170 C94,170 98,186 112,186 L166,186 C180,186 186,26 202,26 C218,26 224,186 240,186 L280,186 C290,186 294,174 302,174 C310,174 314,186 326,186 L362,186 C370,186 374,179 381,179 C388,179 392,186 402,186 L480,186 L480,210 L0,210 Z"
+      />
+      <path
+        className="ra-chart-line"
+        fill="none"
+        d="M0,186 L58,186 C70,186 74,170 84,170 C94,170 98,186 112,186 L166,186 C180,186 186,26 202,26 C218,26 224,186 240,186 L280,186 C290,186 294,174 302,174 C310,174 314,186 326,186 L362,186 C370,186 374,179 381,179 C388,179 392,186 402,186 L480,186"
+      />
+      <line x1="202" y1="26" x2="202" y2="186" className="ra-chart-marker" />
+      <g className="ra-chart-tag" transform="translate(214, 34)">
+        <rect x="0" y="0" width="122" height="20" rx="4" />
+        <text x="61" y="13.5" textAnchor="middle">Peak 1 · 99.20%</text>
+      </g>
+      <text x="6" y="204" className="ra-chart-axis">0 min</text>
+      <text x="474" y="204" textAnchor="end" className="ra-chart-axis">12 min</text>
+    </svg>
   );
 }
 
-function CoaSlideDeck({ pathRef }: { pathRef: RefObject<SVGPathElement | null> }) {
-  const [slide, setSlide] = useState(0);
-  const [autoPaused, setAutoPaused] = useState(false);
-  const touchStartX = useRef<number | null>(null);
-  const resumeTimerRef = useRef<number | null>(null);
+/** Mass spectrum — main m/z stick highlighted. */
+function LcmsChart() {
+  const sticks: Array<[number, number, boolean?]> = [
+    [46, 34], [88, 22], [128, 52], [168, 30], [206, 150, true], [252, 44],
+    [296, 26], [338, 38], [382, 18], [424, 28],
+  ];
+  return (
+    <svg className="ra-chart" viewBox="0 0 480 210" preserveAspectRatio="none" aria-hidden>
+      {[40, 80, 120, 160].map((y) => (
+        <line key={y} x1="0" y1={y} x2="480" y2={y} className="ra-chart-grid" />
+      ))}
+      <line x1="0" y1="186" x2="480" y2="186" className="ra-chart-base" />
+      {sticks.map(([x, h, main]) => (
+        <line
+          key={x}
+          x1={x}
+          x2={x}
+          y1={186}
+          y2={186 - h}
+          className={`ra-chart-stick${main ? ' is-main' : ''}`}
+        />
+      ))}
+      <g className="ra-chart-tag" transform="translate(218, 24)">
+        <rect x="0" y="0" width="150" height="20" rx="4" />
+        <text x="75" y="13.5" textAnchor="middle">m/z match · identity pass</text>
+      </g>
+      <text x="6" y="204" className="ra-chart-axis">m/z</text>
+      <text x="474" y="204" textAnchor="end" className="ra-chart-axis">rel. intensity</text>
+    </svg>
+  );
+}
 
-  const goTo = (index: number) => {
-    setSlide((index + COA_SLIDE_COUNT) % COA_SLIDE_COUNT);
-  };
+/** Assay — label claim vs measured, horizontal bars. */
+function AssayChart() {
+  return (
+    <svg className="ra-chart" viewBox="0 0 480 210" preserveAspectRatio="none" aria-hidden>
+      {[40, 80, 120, 160].map((y) => (
+        <line key={y} x1="0" y1={y} x2="480" y2={y} className="ra-chart-grid" />
+      ))}
+      <text x="6" y="62" className="ra-chart-label">Label claim</text>
+      <rect x="6" y="72" width="404" height="26" rx="6" className="ra-chart-bar ra-chart-bar--ghost" />
+      <text x="422" y="90" className="ra-chart-value">10.0 mg</text>
 
-  const step = (delta: -1 | 1) => goTo(slide + delta);
+      <text x="6" y="136" className="ra-chart-label">Measured</text>
+      <rect x="6" y="146" width="412" height="26" rx="6" className="ra-chart-bar" />
+      <text x="426" y="164" className="ra-chart-value is-main">10.2 mg</text>
+    </svg>
+  );
+}
 
-  const pauseAuto = (ms?: number) => {
-    setAutoPaused(true);
-    if (resumeTimerRef.current != null) {
-      window.clearTimeout(resumeTimerRef.current);
-    }
-    if (ms != null) {
-      resumeTimerRef.current = window.setTimeout(() => {
-        setAutoPaused(false);
-        resumeTimerRef.current = null;
-      }, ms);
-    }
-  };
-
-  const resumeAuto = () => {
-    if (resumeTimerRef.current != null) {
-      window.clearTimeout(resumeTimerRef.current);
-      resumeTimerRef.current = null;
-    }
-    setAutoPaused(false);
-  };
+function LabPanel() {
+  const [tab, setTab] = useState(0);
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
-    return () => {
-      if (resumeTimerRef.current != null) {
-        window.clearTimeout(resumeTimerRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (autoPaused) return;
-
+    if (paused) return;
     let reduced = false;
     try {
       reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -337,514 +170,102 @@ function CoaSlideDeck({ pathRef }: { pathRef: RefObject<SVGPathElement | null> }
       /* ignore */
     }
     if (reduced) return;
-
-    const id = window.setInterval(() => {
-      setSlide((current) => (current + 1) % COA_SLIDE_COUNT);
-    }, COA_AUTO_ADVANCE_MS);
-
+    const id = window.setInterval(() => setTab((t) => (t + 1) % LAB_TABS.length), LAB_TAB_ADVANCE_MS);
     return () => window.clearInterval(id);
-  }, [autoPaused]);
+  }, [paused]);
 
-  const onTouchStart = (event: TouchEvent<HTMLDivElement>) => {
-    pauseAuto();
-    touchStartX.current = event.touches[0]?.clientX ?? null;
-  };
-
-  const onTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
-    const start = touchStartX.current;
-    touchStartX.current = null;
-    if (start == null) {
-      pauseAuto(COA_AUTO_ADVANCE_MS);
-      return;
-    }
-    const end = event.changedTouches[0]?.clientX ?? start;
-    const delta = end - start;
-    if (Math.abs(delta) < 40) {
-      pauseAuto(COA_AUTO_ADVANCE_MS);
-      return;
-    }
-    step(delta > 0 ? -1 : 1);
-    pauseAuto(COA_AUTO_ADVANCE_MS);
-  };
-
-  const manualStep = (delta: -1 | 1) => {
-    step(delta);
-    pauseAuto(COA_AUTO_ADVANCE_MS);
-  };
-
-  const manualGoTo = (index: number) => {
-    goTo(index);
-    pauseAuto(COA_AUTO_ADVANCE_MS);
-  };
+  const active = LAB_TABS[tab];
 
   return (
-    <div className="rg-hplc-wrap rg-hero-card">
-      <div className="rg-coa-slides-head">
-        <span className="rg-coa-slides-label">Sample certificate · {BATCH_NO}</span>
-        <span className="rg-coa-slides-counter">
-          {String(slide + 1).padStart(2, '0')} / {String(COA_SLIDE_COUNT).padStart(2, '0')}
-        </span>
+    <div className="ra-lab" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+      <div className="ra-lab-chrome">
+        <span className="ra-lab-chrome-dot" aria-hidden />
+        <span className="ra-lab-mark">Live batch data</span>
+        <span className="ra-lab-batch">{BATCH_NO}</span>
       </div>
-      <div
-        className="rg-hplc-card rg-coa-slides-card"
-        onMouseEnter={() => pauseAuto()}
-        onMouseLeave={resumeAuto}
-      >
-        <div
-          className="rg-coa-slides-viewport"
-          onTouchStart={onTouchStart}
-          onTouchEnd={onTouchEnd}
-          aria-live="polite"
-        >
-          {/* Slide 1 — Cover */}
-          <div
-            className={`rg-coa-slide${slide === 0 ? ' rg-coa-slide--active' : ''}`}
-            role="group"
-            aria-roledescription="slide"
-            aria-label="Certificate cover"
-            aria-hidden={slide !== 0}
-          >
-            <div className="rg-hplc-panel-inner">
-              <div className="rg-hplc-card-head">
-                <Shield className="w-4 h-4 text-[#45ff34]" strokeWidth={2} />
-                <span className="rg-hplc-card-label">
-                  Certificate of Analysis{' '}
-                  <span className="rg-hplc-lab">
-                    <span className="text-white">Tested by</span>{' '}
-                    <OzcaniumAnalyticsName />
-                  </span>
-                </span>
-                <span className="text-[#10B981] rg-hplc-badge">Independent</span>
-              </div>
-              <div className="rg-coa-cover-body">
-                <p className="rg-coa-cover-batch">{BATCH_NO}</p>
-                <p className="rg-coa-cover-title">Certificate of Analysis</p>
-                <p className="rg-coa-cover-lead">
-                  Each lot is tested for HPLC purity, LC-MS identity, and net peptide content before dispatch.
-                  Results are issued under the batch number below.
-                </p>
-                <div className="rg-hplc-meta rg-coa-cover-meta">
-                  <div className="rg-hplc-meta-item">
-                    <span className="rg-hplc-meta-label">Batch</span>
-                    <span className="rg-hplc-meta-value">{BATCH_NO}</span>
-                  </div>
-                  <div className="rg-hplc-meta-item">
-                    <span className="rg-hplc-meta-label">Tests</span>
-                    <span className="rg-hplc-meta-value">3-test COA</span>
-                  </div>
-                  <div className="rg-hplc-meta-item">
-                    <span className="rg-hplc-meta-label">Tested</span>
-                    <span className="rg-hplc-meta-value">28 May 2026</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Slide 2 — HPLC */}
-          <div
-            className={`rg-coa-slide${slide === 1 ? ' rg-coa-slide--active' : ''}`}
-            role="group"
-            aria-roledescription="slide"
-            aria-label="HPLC purity"
-            aria-hidden={slide !== 1}
+      <div className="ra-lab-tabs" role="tablist" aria-label="Lab tests">
+        {LAB_TABS.map((t, i) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={i === tab}
+            className={`ra-lab-tab${i === tab ? ' is-active' : ''}`}
+            onClick={() => {
+              setTab(i);
+              setPaused(true);
+            }}
           >
-            <div className="rg-hplc-panel-inner">
-              <div className="rg-hplc-card-head">
-                <FlaskConical className="w-4 h-4 text-[#8B5CF6]" strokeWidth={2} />
-                <span className="rg-hplc-card-label">
-                  HPLC Purity Test <span className="rg-hplc-lab">Chromatogram excerpt</span>
-                </span>
-              </div>
-              <HplcChart pathRef={pathRef} />
-              <div className="rg-hplc-purity-row">
-                <div>
-                  <span className="rg-hplc-purity-label">HPLC purity</span>
-                  <span className="rg-hplc-purity-value rg-hplc-purity-count">
-                    <CountUp
-                      end={99.2}
-                      decimals={1}
-                      suffix="%"
-                      delay={0.2}
-                      duration={1.2}
-                      className="rg-hplc-purity-accent"
-                    />
-                  </span>
-                  <span className="rg-hplc-purity-note">RP-HPLC · ≥99% release spec</span>
-                </div>
-                <span className="rg-hplc-verified color-green">
-                  <Check className="w-3.5 h-3.5 color-green" strokeWidth={2.5} />
-                  Pass
-                </span>
-              </div>
-            </div>
-          </div>
+            <span className="ra-lab-tab-n">{String(i + 1).padStart(2, '0')}</span>
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-          {/* Slide 3 — LC-MS */}
-          <div
-            className={`rg-coa-slide${slide === 2 ? ' rg-coa-slide--active' : ''}`}
-            role="group"
-            aria-roledescription="slide"
-            aria-label="LC-MS identity"
-            aria-hidden={slide !== 2}
-          >
-            <div className="rg-hplc-panel-inner rg-coa-slide-centered">
-              <div className="rg-coa-slide-icon-wrap">
-                <Dna className="w-8 h-8 text-[#A78BFA]" strokeWidth={1.5} />
-              </div>
-              <p className="rg-coa-slide-eyebrow">LC-MS Identity Test</p>
-              <p className="rg-coa-slide-result">Confirmed</p>
-              <p className="rg-coa-slide-desc">
-                Observed molecular weight matches the expected sequence. Picks up wrong-sequence or mislabelled
-                material that HPLC alone would not flag.
-              </p>
-              <span className="rg-hplc-verified">
-                <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
-                MW confirmed
-              </span>
-            </div>
-          </div>
-
-          {/* Slide 4 — Assay */}
-          <div
-            className={`rg-coa-slide${slide === 3 ? ' rg-coa-slide--active' : ''}`}
-            role="group"
-            aria-roledescription="slide"
-            aria-label="Peptide content assay"
-            aria-hidden={slide !== 3}
-          >
-            <div className="rg-hplc-panel-inner rg-coa-slide-centered">
-              <div className="rg-coa-slide-icon-wrap">
-                <Scale className="w-8 h-8 text-[#A78BFA]" strokeWidth={1.5} />
-              </div>
-              <p className="rg-coa-slide-eyebrow">Peptide Content Assay</p>
-              <p className="rg-coa-slide-result">10.2mg</p>
-              <p className="rg-coa-slide-desc">
-                Net peptide measured at 10.2mg against a 10mg label claim. Confirms fill weight — not just how
-                clean the sample is.
-              </p>
-              <span className="rg-hplc-verified">
-                <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
-                Within spec
-              </span>
-            </div>
-          </div>
-
-          {/* Slide 5 — Verified + archive */}
-          <div
-            className={`rg-coa-slide${slide === 4 ? ' rg-coa-slide--active' : ''}`}
-            role="group"
-            aria-roledescription="slide"
-            aria-label="Verified summary"
-            aria-hidden={slide !== 4}
-          >
-            <div className="rg-hplc-panel-inner">
-              <div className="rg-hplc-card-head">
-                <Shield className="w-4 h-4 text-[#45ff34]" strokeWidth={2} />
-                <span className="rg-hplc-card-label">
-                  Verified batch <span className="rg-hplc-lab">{BATCH_NO}</span>
-                </span>
-                <span className="rg-hplc-badge">Complete</span>
-              </div>
-              <CoaTestCards />
-              <div className="rg-coa-verified-stamp">
-                <Check className="w-4 h-4" strokeWidth={2.5} />
-                COA verified · <OzcaniumAnalyticsName /> · {BATCH_NO}
-              </div>
-              <a href={coaArchiveUrl()} className="rg-hplc-archive">
-                <span className="rg-hplc-archive-label">COA archive</span>
-                <span className="rg-hplc-archive-url">{siteHostname()}/coa</span>
-                <span className="rg-hplc-archive-cta">
-                  View full archive <ArrowRight className="w-3.5 h-3.5" />
-                </span>
-              </a>
-            </div>
-          </div>
+      <div className="ra-lab-body">
+        <div className="ra-lab-readout">
+          <p className="ra-lab-figure" key={active.id}>
+            {active.figure}
+            {active.unit && <span>{active.unit}</span>}
+          </p>
+          <p className="ra-lab-note">{active.note}</p>
         </div>
 
-        <div className="rg-coa-slides-controls">
-          <button
-            type="button"
-            className="rg-coa-slides-nav"
-            onClick={() => manualStep(-1)}
-            aria-label="Previous slide"
-          >
-            <ChevronLeft className="w-4 h-4" strokeWidth={2} />
-          </button>
-          <div className="rg-coa-slides-dots" role="tablist" aria-label="COA slides">
-            {Array.from({ length: COA_SLIDE_COUNT }, (_, index) => (
-              <button
-                key={index}
-                type="button"
-                role="tab"
-                aria-selected={slide === index}
-                aria-label={`Slide ${index + 1}`}
-                className={`rg-coa-slides-dot${slide === index ? ' rg-coa-slides-dot--active' : ''}`}
-                onClick={() => manualGoTo(index)}
-              />
-            ))}
+        <div className="ra-lab-chart" aria-hidden>
+          <div className={`ra-lab-pane${tab === 0 ? ' is-active' : ''}`} key={`hplc-${tab === 0}`}>
+            {tab === 0 && <HplcChart />}
           </div>
-          <button
-            type="button"
-            className="rg-coa-slides-nav"
-            onClick={() => manualStep(1)}
-            aria-label="Next slide"
-          >
-            <ChevronRight className="w-4 h-4" strokeWidth={2} />
-          </button>
+          <div className={`ra-lab-pane${tab === 1 ? ' is-active' : ''}`} key={`lcms-${tab === 1}`}>
+            {tab === 1 && <LcmsChart />}
+          </div>
+          <div className={`ra-lab-pane${tab === 2 ? ' is-active' : ''}`} key={`assay-${tab === 2}`}>
+            {tab === 2 && <AssayChart />}
+          </div>
         </div>
+      </div>
+
+      <div className="ra-lab-foot">
+        <span className="ra-lab-foot-lab">
+          Tested by <OzcaniumAnalyticsName />
+        </span>
+        <span className="ra-lab-foot-status">
+          <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
+          Released
+        </span>
+        <a href={coaArchiveUrl()} className="ra-lab-foot-link">
+          Full COA <ArrowUpRight className="w-3.5 h-3.5" />
+        </a>
       </div>
     </div>
   );
 }
 
-const VERIFICATION_TEST_ICONS = {
-  hplc: FlaskConical,
-  lcms: Dna,
-  assay: Scale,
-} as const;
-
-function VerificationSection() {
+/* ————— Batch marquee ————— */
+function BatchMarquee() {
+  const items = [...TICKER, ...TICKER];
   return (
-    <section id="verification" className="rg-section rg-verification">
-      <div className="rg-container">
-        <div className="rg-verification-panel">
-          <div className="rg-verification-grid">
-            <div className="rg-verification-copy">
-              <p className="rg-verification-eyebrow">
-                <Shield className="w-3.5 h-3.5" strokeWidth={2} aria-hidden />
-                COA proof
-              </p>
-
-              <h2 className="rg-verification-heading">
-                <span className="rg-verification-heading-line">Three tests.</span>
-                <span className="rg-verification-heading-accent">One published COA.</span>
-              </h2>
-
-              <p className="rg-verification-lead">
-                HPLC, LC-MS, and a content assay on every batch — results published under the batch ID before
-                you place an order.
-              </p>
-
-              <div className="rg-verification-contrast">
-                <div className="rg-verification-vs rg-verification-vs--weak">
-                  <span className="rg-verification-vs-label">Typical supplier</span>
-                  <p>One HPLC number on a generic sheet, or the same PDF attached to every shipment.</p>
-                </div>
-                <div className="rg-verification-vs rg-verification-vs--strong">
-                  <span className="rg-verification-vs-label">PEPLAB</span>
-                  <p>Three test lines, one batch ID, published per lot — same ID on your dispatch note.</p>
-                </div>
-              </div>
-
-              <a href={coaArchiveUrl()} className="rg-verification-cta">
-                Browse COA archive
-                <ArrowRight className="w-4 h-4" />
-              </a>
-            </div>
-
-            <div className="rg-verification-visual">
-              <div className="rg-verification-stack" aria-label="Three COA tests">
-                {COA_TEST_CARDS.map((test, index) => {
-                  const Icon = VERIFICATION_TEST_ICONS[test.id];
-                  return (
-                    <article key={test.id} className="rg-verification-test">
-                      <span className="rg-verification-test-num">
-                        {String(index + 1).padStart(2, '0')}
-                      </span>
-                      <div className="rg-verification-test-icon">
-                        <Icon className="w-4 h-4 text-[#A78BFA]" strokeWidth={1.75} />
-                      </div>
-                      <div className="rg-verification-test-copy">
-                        <h3 className="rg-verification-test-title">{test.title}</h3>
-                        <p className="rg-verification-test-note">{test.note}</p>
-                      </div>
-                      <div className="rg-verification-test-result-wrap">
-                        <span className="rg-verification-test-result">{test.result}</span>
-                        <span className="rg-verification-test-pass">
-                          <Check className="w-3 h-3 text-[#36ea51]" strokeWidth={2.5} />
-                          Pass
-                        </span>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-              <div className="rg-verification-stamp">
-                <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
-                COA verified · <OzcaniumAnalyticsName /> · {BATCH_NO}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function PeptideKnowledgeSection() {
-  return (
-    <section id="knowledge" className="rg-section rg-knowledge">
-      <div className="rg-container">
-        <div className="rg-knowledge-panel">
-          <div className="rg-section-header">
-            <p className="rg-eyebrow">Before you order</p>
-            <h2 className="rg-heading">How to read what we publish</h2>
-            <p className="rg-lead mx-auto">
-              What the three COA lines mean, how batch numbers tie to your shipment, and what research-only
-              actually implies in practice.
-            </p>
-          </div>
-          <div className="rg-knowledge-grid">
-            {PEPTIDE_KNOWLEDGE.map((item, index) => {
-              const Icon = item.icon;
-              return (
-                <article key={item.title} className="rg-knowledge-card">
-                  <span className="rg-knowledge-num">{String(index + 1).padStart(2, '0')}</span>
-                  <div className="rg-knowledge-icon">
-                    <Icon className="w-5 h-5 text-[#8B5CF6]" strokeWidth={1.75} />
-                  </div>
-                  <h3 className="rg-card-title">{item.title}</h3>
-                  <p className="rg-card-text">{item.text}</p>
-                </article>
-              );
-            })}
-          </div>
-          <p className="rg-section-note">Research use only. Not for human or veterinary application.</p>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function FaqOrderSection({
-  openFaq,
-  setOpenFaq,
-}: {
-  openFaq: string | null;
-  setOpenFaq: (id: string | null) => void;
-}) {
-  return (
-    <section id="faq" className="rg-section rg-faq-order">
-      <div className="rg-container">
-        <div className="rg-faq-order-grid">
-          <div className="rg-faq-order-faq">
-            <p className="rg-eyebrow">FAQ</p>
-            <h2 className="rg-heading">COA questions, answered.</h2>
-            <p className="rg-lead rg-faq-order-lead">
-              HPLC, LC-MS, content assay, and how batch IDs work.
-            </p>
-            <div className="rg-faq-list">
-              {FAQ.map((item, index) => {
-                const open = openFaq === item.id;
-                return (
-                  <article key={item.id} className={`rg-faq-item${open ? ' rg-faq-item--open' : ''}`}>
-                    <h3 className="m-0">
-                      <button
-                        type="button"
-                        className="rg-faq-trigger"
-                        aria-expanded={open}
-                        onClick={() => setOpenFaq(open ? null : item.id)}
-                      >
-                        <span className="rg-faq-qnum">Q.{String(index + 1).padStart(2, '0')}</span>
-                        <span>{item.q}</span>
-                        <ChevronDown className="rg-faq-chevron" strokeWidth={2} />
-                      </button>
-                    </h3>
-                    {open && <p className="rg-faq-answer">{item.a}</p>}
-                  </article>
-                );
-              })}
-            </div>
-          </div>
-
-          <aside className="rg-faq-order-cta">
-            <div className="rg-faq-order-cta-panel">
-              <p className="rg-faq-order-cta-badge">
-                <span className="rg-hero-badge-dot" aria-hidden />
-                Ready to order
-              </p>
-              <h2 className="rg-faq-order-cta-title">
-                Check the COA first.
-                <span className="rg-faq-order-cta-accent">Then order.</span>
-              </h2>
-              <p className="rg-faq-order-cta-lead">
-                Batch numbers are on every dispatch note. COAs are public before you buy — no recycled
-                certificates, no guessing which lot you got.
-              </p>
-              <div className="rg-faq-order-cta-actions">
-                <a href={shopPageUrl()} className="rg-btn rg-btn--primary rg-btn--cool">
-                  Shop <span className="rg-btn-accent-word">now</span>
-                  <ArrowRight className="w-4 h-4 rg-btn-arrow" />
-                </a>
-                <a href={coaArchiveUrl()} className="rg-btn rg-btn--outline">
-                  Review COAs first
-                </a>
-              </div>
-              <p className="rg-faq-order-cta-trust">
-                Secure checkout · Card · Apple Pay · Google Pay · Crypto · Dispatched from Australia
-              </p>
-            </div>
-          </aside>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function BatchTicker() {
-  const items = [...TICKER_ITEMS, ...TICKER_ITEMS];
-  return (
-    <div className="rg-ticker">
-      <div className="rg-ticker-inner">
-        <span className="rg-ticker-label">
-          <span className="rg-ticker-live-dot" aria-hidden />
-          Live batch feed
-        </span>
-        <div className="rg-ticker-scroll" aria-hidden>
-          <div className="rg-ticker-track">
-            {items.map((item, i) => (
-              <span key={`${item.id}-${i}`} className="rg-ticker-item">
-                <Check className="w-3 h-3" strokeWidth={2.5} />
-                {item.id}
-                <span className="rg-ticker-dot">·</span>
-                <span className="rg-ticker-purity">
-                  {item.hplc} · {item.lcms} · {item.assay}
-                </span>
-              </span>
-            ))}
-          </div>
-        </div>
+    <div className="ra-marquee" aria-hidden>
+      <div className="ra-marquee-track">
+        {items.map((item, i) => (
+          <span key={`${item.id}-${i}`} className="ra-marquee-item">
+            <Check className="w-3 h-3" strokeWidth={2.5} />
+            <span className="ra-marquee-id">{item.id}</span>
+            <span className="ra-marquee-v">{item.v}</span>
+          </span>
+        ))}
       </div>
     </div>
   );
 }
 
-function ResearchHero() {
-  const heroRef = useRef<HTMLElement>(null);
-  const pathRef = useRef<SVGPathElement>(null);
-  const [catalogCount, setCatalogCount] = useState(60);
-
-  const metaStats = useMemo(
-    () =>
-      HERO_META_STATS.map((item) =>
-        item.kind === 'count' && item.label === 'Batches'
-          ? { ...item, end: catalogCount }
-          : item,
-      ),
-    [catalogCount],
-  );
-
-  useEffect(() => {
-    setCatalogCount(getStaticProducts().length || 60);
-  }, []);
-
-  const labelDelay = (index: number) => COUNT_BASE_DELAY + index * 0.14 + COUNT_DURATION + 0.06;
+/* ————— Hero ————— */
+function Hero() {
+  const ref = useRef<HTMLElement>(null);
 
   useLayoutEffect(() => {
-    const hero = heroRef.current;
-    if (!hero) return;
-
+    const el = ref.current;
+    if (!el) return;
     let reduced = false;
     try {
       reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -853,351 +274,373 @@ function ResearchHero() {
     }
 
     const ctx = gsap.context(() => {
-      const reveals = hero.querySelectorAll('.rg-hero-reveal');
-      const words = hero.querySelectorAll<HTMLElement>('.rg-reveal-word');
-      const card = hero.querySelector('.rg-hero-card');
-      const accentLine = hero.querySelector('.rg-hero-accent-line');
+      const words = el.querySelectorAll('.ra-display-word');
+      const fades = el.querySelectorAll('.ra-hero-fade');
+      const cert = el.querySelector('.ra-lab');
 
       if (reduced) {
-        if (words.length) gsap.set(words, { opacity: 1, yPercent: 0, clearProps: 'transform' });
-        if (reveals.length) gsap.set(reveals, { opacity: 1, x: 0, y: 0, clearProps: 'all' });
-        if (card) gsap.set(card, { opacity: 1, x: 0, clearProps: 'all' });
-        if (accentLine) gsap.set(accentLine, { opacity: 1, scaleX: 1, clearProps: 'all' });
+        gsap.set([words, fades, cert], { clearProps: 'all', opacity: 1 });
         return;
       }
 
-      if (words.length) {
-        gsap.set(words, { yPercent: 110, opacity: 0 });
-        gsap.to(words, {
-          yPercent: 0,
-          opacity: 1,
-          duration: 0.8,
-          stagger: 0.045,
-          delay: 0.12,
-          ease: 'power3.out',
-          clearProps: 'transform',
-        });
-      }
-
-      if (reveals.length) {
-        gsap.fromTo(
-          reveals,
-          { y: 32, opacity: 0 },
-          {
-            y: 0,
-            opacity: 1,
-            duration: 0.95,
-            stagger: 0.09,
-            ease: 'power3.out',
-            clearProps: 'transform',
-          },
-        );
-      }
-
-      if (card) {
-        gsap.fromTo(
-          card,
-          { y: 36, opacity: 0 },
-          { y: 0, opacity: 1, duration: 0.9, delay: 0.05, ease: 'power3.out', clearProps: 'transform' },
-        );
-      }
-
-      if (accentLine) {
-        gsap.fromTo(
-          accentLine,
-          { scaleX: 0, opacity: 0 },
-          {
-            scaleX: 1,
-            opacity: 1,
-            duration: 0.85,
-            delay: 0.45,
-            ease: 'power2.inOut',
-            transformOrigin: 'left center',
-          },
-        );
-      }
-
-      const path = pathRef.current;
-      if (path) {
-        const len = path.getTotalLength();
-        gsap.set(path, { strokeDasharray: len, strokeDashoffset: len });
-        gsap.to(path, {
-          strokeDashoffset: 0,
-          duration: 2,
-          delay: 0.7,
-          ease: 'power2.inOut',
-        });
-      }
-    }, hero);
+      gsap.set(words, { yPercent: 110 });
+      gsap.to(words, { yPercent: 0, duration: 0.9, stagger: 0.09, ease: 'power4.out', delay: 0.1 });
+      gsap.fromTo(
+        fades,
+        { y: 24, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.85, stagger: 0.1, delay: 0.5, ease: 'power2.out' },
+      );
+      gsap.fromTo(
+        cert,
+        { y: 56, opacity: 0, rotate: 1.2 },
+        { y: 0, opacity: 1, rotate: 0, duration: 1.2, delay: 0.35, ease: 'power3.out' },
+      );
+    }, el);
 
     return () => ctx.revert();
   }, []);
 
   return (
-    <section ref={heroRef} className="rg-hero nl-hero relative overflow-x-hidden overflow-y-visible">
-      <div className="nl-hero-vignette pointer-events-none" aria-hidden />
-      <div className="nl-hero-glow rg-hero-glow pointer-events-none" aria-hidden />
-      <div className="rg-hero-orb rg-hero-orb--purple pointer-events-none" aria-hidden />
-      <div className="rg-hero-orb rg-hero-orb--pink pointer-events-none" aria-hidden />
+    <section ref={ref} className="ra-hero">
+      <div className="ra-bg" aria-hidden>
+        <div className="ra-bg-glow ra-bg-glow--teal" />
+        <div className="ra-bg-glow ra-bg-glow--violet" />
+      </div>
 
-      <div className="nl-container relative z-10 flex flex-col min-h-0">
-        <div className="rg-hero-grid nl-hero-grid grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10 flex-1">
-          {/* Certificate first — top on mobile, left on desktop */}
-          <div className="rg-hero-visual nl-hero-visual relative flex flex-col items-center w-full">
-            <CoaSlideDeck pathRef={pathRef} />
-          </div>
+      <div className="ra-shell ra-hero-inner">
+        <p className="ra-hero-eyebrow ra-hero-fade">
+          <span className="ra-live-dot" aria-hidden />
+          Peptides Australia — research use only
+        </p>
 
-          <div className="rg-hero-copy lg:pl-4">
-            <p className="rg-hero-eyebrow rg-hero-reveal">
-              <span className="rg-hero-eyebrow-dot" aria-hidden />
-              <WriteInText text="Peptides Australia" delay={0.08} charDelay={0.022} />
+        <h1 className="ra-display">
+          <span className="ra-display-row">
+            <span className="ra-display-clip">
+              <span className="ra-display-word">LAB PROOF.</span>
+            </span>
+          </span>
+          <span className="ra-display-row">
+            <span className="ra-display-clip">
+              <span className="ra-display-word ra-display-word--ghost">NOT PROMISES.</span>
+            </span>
+          </span>
+        </h1>
+
+        <div className="ra-hero-split">
+          <div className="ra-hero-copy ra-hero-fade">
+            <p className="ra-hero-lead">
+              Every research lot ships with a published certificate — HPLC purity, LC-MS identity, and content
+              assay under one batch ID you can audit before you order.
             </p>
-
-            <h1 className="rg-hero-title">
-              <span className="rg-hero-line">
-                <span className="rg-reveal-word-wrap">
-                  <span className="rg-reveal-word">PEPLAB PEPTIDES</span>
-                </span>
-              </span>
-              <span className="rg-hero-accent-row">
-                <span className="rg-reveal-word-wrap">
-                  <span className="rg-reveal-word rg-hero-accent">WHERE PURITY MEETS POWER</span>
-                </span>
-              </span>
-            </h1>
-
-            <p className="rg-hero-lead">
-              <WriteInText
-                text="Third-party tested. Result published. Same-day dispatch Mon–Fri. AusPost Express Australia-wide."
-                delay={0.2}
-                charDelay={0.012}
-              />
-            </p>
-
-            <div className="rg-hero-accent-line rg-hero-reveal" aria-hidden />
-
-            <div className="rg-hero-actions rg-hero-reveal">
-              <a href={shopPageUrl()} className="rg-btn rg-btn--primary rg-btn--cool">
-                Shop <span className="rg-btn-accent-word">now</span>
-                <ArrowRight className="w-4 h-4 rg-btn-arrow" />
+            <div className="ra-hero-cta">
+              <a href={shopPageUrl()} className="ra-btn ra-btn--solid">
+                Shop research materials
+                <ArrowRight className="w-4 h-4" />
+              </a>
+              <a href={coaArchiveUrl()} className="ra-btn ra-btn--ghost">
+                Browse COA archive
               </a>
             </div>
+
+            <dl className="ra-hero-stats ra-hero-fade">
+              <div>
+                <dd>
+                  <CountUp end={99} prefix="≥" suffix="%" delay={0.9} />
+                </dd>
+                <dt>HPLC purity floor</dt>
+              </div>
+              <div>
+                <dd>
+                  <CountUp end={3} delay={1.0} />
+                </dd>
+                <dt>Tests per batch</dt>
+              </div>
+              <div>
+                <dd>
+                  <CountUp end={60} suffix="+" delay={1.1} />
+                </dd>
+                <dt>Published batches</dt>
+              </div>
+            </dl>
           </div>
-        </div>
 
-        <div className="nl-hero-meta-block rg-hero-meta-block mt-6 lg:mt-8 shrink-0">
-          <div className="nl-hero-meta-row">
-            <div className="nl-hero-meta-left">
-              {metaStats.map((item, i) => (
-                <div key={item.label} className="nl-hero-meta-stat-wrap">
-                  {i > 0 && <span className="nl-hero-meta-divider" aria-hidden />}
-                  <div className="nl-hero-meta-stat rg-hero-meta-stat">
-                    <item.icon className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--nl-accent)] mb-1.5" strokeWidth={1.75} />
-                    <p className="text-sm sm:text-base font-bold text-[var(--nl-text)] leading-none tabular-nums">
-                      {item.kind === 'count' ? (
-                        <CountUp
-                          end={item.end}
-                          prefix={'prefix' in item ? item.prefix : ''}
-                          suffix={item.suffix}
-                          delay={COUNT_BASE_DELAY + i * 0.14}
-                          duration={COUNT_DURATION}
-                        />
-                      ) : (
-                        <WriteInText
-                          text={item.value}
-                          delay={COUNT_BASE_DELAY + i * 0.14}
-                          charDelay={0.055}
-                        />
-                      )}
-                    </p>
-                    <p className="text-[10px] font-mono uppercase tracking-wider text-[var(--nl-text-muted)] mt-1 font-semibold">
-                      <WriteInText text={item.label} delay={labelDelay(i)} charDelay={0.03} />
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="nl-spec-bar nl-hero-meta-spec rg-hero-spec-bar rounded-xl border border-[var(--nl-border)] bg-[var(--nl-bg-elevated)] px-4 py-3 flex flex-wrap items-center justify-center lg:justify-end gap-x-3 sm:gap-x-4 gap-y-2 text-[10px] sm:text-xs font-mono">
-              <span className="text-[#36ea51] font-bold uppercase tracking-wider">{BATCH_NO}</span>
-              <span className="text-[var(--nl-border-strong)] hidden sm:inline">|</span>
-              <span className="text-[#FFFFFF]">
-                HPLC{' '}
-                <span className="text-[#36ea51] font-semibold tabular-nums">99.2%</span>
-              </span>
-              <span className="text-[var(--nl-border-strong)] hidden sm:inline">|</span>
-              <span className="text-[#FFFFFF]">
-                LC-MS <span className="text-[#36ea51] font-semibold">Pass</span>
-              </span>
-              <span className="text-[var(--nl-border-strong)] hidden sm:inline">|</span>
-              <span className="text-[#FFFFFF]">
-                Assay <span className="text-[#36ea51] font-semibold">10.2mg</span>
-              </span>
-              <span className="text-[var(--nl-border-strong)] hidden sm:inline">|</span>
-              <span className="text-[#FFFFFF  ]">
-                Lab <OzcaniumAnalyticsName className="font-semibold" />
-              </span>
-              <span className="text-[var(--nl-border-strong)] hidden sm:inline">|</span>
-              <span className="text-[#36ea51] font-bold">COA Verified</span>
-            </div>
+          <div className="ra-hero-visual">
+            <LabPanel />
           </div>
         </div>
       </div>
 
-      <BatchTicker />
+      <BatchMarquee />
+    </section>
+  );
+}
+
+/* ————— Bento proof grid ————— */
+function ProofBento() {
+  const ref = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let reduced = false;
+    try {
+      reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch {
+      /* ignore */
+    }
+    if (reduced) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        el.querySelectorAll('.ra-tile'),
+        { y: 36, opacity: 0 },
+        {
+          y: 0,
+          opacity: 1,
+          duration: 0.8,
+          stagger: 0.08,
+          ease: 'power3.out',
+          scrollTrigger: { trigger: el, start: 'top 78%' },
+        },
+      );
+    }, el);
+
+    return () => ctx.revert();
+  }, []);
+
+  return (
+    <section ref={ref} className="ra-section" id="proof">
+      <div className="ra-shell">
+        <header className="ra-section-head">
+          <p className="ra-eyebrow">The proof system</p>
+          <h2 className="ra-heading">
+            One certificate. <span className="ra-grad">Zero guesswork.</span>
+          </h2>
+        </header>
+
+        <div className="ra-bento">
+          {/* Large — HPLC */}
+          <article className="ra-tile ra-tile--hero">
+            <p className="ra-tile-kicker">01 — HPLC purity</p>
+            <p className="ra-tile-figure">
+              99.20<span>%</span>
+            </p>
+            <p className="ra-tile-text">
+              Area-% of the main peak on reverse-phase HPLC. Batches below the ≥99% floor never ship.
+            </p>
+            <div className="ra-tile-bars" aria-hidden>
+              <span style={{ height: '90%' }} />
+              <span style={{ height: '16%' }} />
+              <span style={{ height: '11%' }} />
+              <span style={{ height: '7%' }} />
+              <span style={{ height: '5%' }} />
+              <span style={{ height: '4%' }} />
+            </div>
+          </article>
+
+          {/* LC-MS */}
+          <article className="ra-tile">
+            <p className="ra-tile-kicker">02 — LC-MS identity</p>
+            <p className="ra-tile-value ra-tile-value--pass">
+              <ShieldCheck className="w-5 h-5" strokeWidth={2} />
+              Confirmed
+            </p>
+            <p className="ra-tile-text">Mass spec confirms the sequence — catches mix-ups a clean chromatogram hides.</p>
+          </article>
+
+          {/* Assay */}
+          <article className="ra-tile">
+            <p className="ra-tile-kicker">03 — Content assay</p>
+            <p className="ra-tile-value">10.2 mg</p>
+            <p className="ra-tile-text">Net peptide against the 10 mg label — fill weight, not just purity.</p>
+          </article>
+
+          {/* Lab */}
+          <article className="ra-tile">
+            <p className="ra-tile-kicker">Independent lab</p>
+            <p className="ra-tile-value ra-tile-value--sm">
+              <FlaskConical className="w-5 h-5 text-[#A78BFA]" strokeWidth={1.75} />
+              <OzcaniumAnalyticsName />
+            </p>
+            <p className="ra-tile-text">Third-party testing — results published as issued, never rewritten.</p>
+          </article>
+
+          {/* Dispatch */}
+          <article className="ra-tile">
+            <p className="ra-tile-kicker">Dispatch</p>
+            <p className="ra-tile-value ra-tile-value--sm">
+              <Truck className="w-5 h-5 text-[#A78BFA]" strokeWidth={1.75} />
+              Same-day Mon–Fri
+            </p>
+            <p className="ra-tile-text">AusPost Express Australia-wide. Batch ID printed on your packing slip.</p>
+          </article>
+
+          {/* Archive — wide CTA */}
+          <a href={coaArchiveUrl()} className="ra-tile ra-tile--cta">
+            <div>
+              <p className="ra-tile-kicker">Public archive</p>
+              <p className="ra-tile-value">Search any batch ID before you buy</p>
+              <p className="ra-tile-text ra-tile-text--mono">
+                {BATCH_NO} · BN91LAB · BN94LAB · BN97LAB …
+              </p>
+            </div>
+            <span className="ra-tile-cta-arrow" aria-hidden>
+              <ArrowUpRight className="w-6 h-6" />
+            </span>
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ————— Process timeline ————— */
+function Process() {
+  const ref = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let reduced = false;
+    try {
+      reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch {
+      /* ignore */
+    }
+    if (reduced) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        el.querySelectorAll('.ra-flow-step'),
+        { y: 28, opacity: 0 },
+        {
+          y: 0,
+          opacity: 1,
+          duration: 0.7,
+          stagger: 0.12,
+          ease: 'power2.out',
+          scrollTrigger: { trigger: el, start: 'top 80%' },
+        },
+      );
+    }, el);
+
+    return () => ctx.revert();
+  }, []);
+
+  return (
+    <section ref={ref} className="ra-section ra-section--tint" id="process">
+      <div className="ra-shell">
+        <header className="ra-section-head">
+          <p className="ra-eyebrow">From sample to archive</p>
+          <h2 className="ra-heading">How a batch earns its number.</h2>
+        </header>
+
+        <div className="ra-flow">
+          <div className="ra-flow-line" aria-hidden />
+          {PROCESS.map((step) => (
+            <article key={step.n} className="ra-flow-step">
+              <span className="ra-flow-n">{step.n}</span>
+              <h3>{step.title}</h3>
+              <p>{step.text}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ————— FAQ ————— */
+function Faq() {
+  const [open, setOpen] = useState<string | null>('hplc');
+
+  return (
+    <section className="ra-section" id="faq">
+      <div className="ra-shell ra-faq-grid">
+        <header className="ra-section-head ra-section-head--left">
+          <p className="ra-eyebrow">FAQ</p>
+          <h2 className="ra-heading">Clear answers.</h2>
+          <p className="ra-lead">HPLC, batch matching, and research-only use.</p>
+          <a href={coaArchiveUrl()} className="ra-btn ra-btn--ghost ra-faq-btn">
+            Open COA archive
+            <ArrowUpRight className="w-4 h-4" />
+          </a>
+        </header>
+
+        <div className="ra-faq">
+          {FAQ.map((item, idx) => {
+            const isOpen = open === item.id;
+            return (
+              <div key={item.id} className={`ra-faq-item${isOpen ? ' is-open' : ''}`}>
+                <button
+                  type="button"
+                  className="ra-faq-q"
+                  aria-expanded={isOpen}
+                  onClick={() => setOpen(isOpen ? null : item.id)}
+                >
+                  <span className="ra-faq-idx">{String(idx + 1).padStart(2, '0')}</span>
+                  <span className="ra-faq-label">{item.q}</span>
+                  <span className="ra-faq-icon" aria-hidden>
+                    {isOpen ? '−' : '+'}
+                  </span>
+                </button>
+                {isOpen && <p className="ra-faq-a">{item.a}</p>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ————— Closing ————— */
+function Closing() {
+  return (
+    <section className="ra-closing">
+      <div className="ra-bg" aria-hidden>
+        <div className="ra-bg-glow ra-bg-glow--teal" />
+      </div>
+      <div className="ra-shell ra-closing-inner">
+        <h2 className="ra-closing-title">
+          Verify the batch.
+          <br />
+          <span className="ra-grad">Then order.</span>
+        </h2>
+        <p className="ra-lead">Public COAs. Same-day dispatch Mon–Fri. Research use only.</p>
+        <div className="ra-hero-cta ra-closing-cta">
+          <a href={coaArchiveUrl()} className="ra-btn ra-btn--solid">
+            Review COAs
+            <Check className="w-4 h-4" />
+          </a>
+          <a href={shopPageUrl()} className="ra-btn ra-btn--ghost">
+            Go to shop
+            <ArrowRight className="w-4 h-4" />
+          </a>
+        </div>
+      </div>
     </section>
   );
 }
 
 export default function ResearchGateway() {
-  const [openFaq, setOpenFaq] = useState<string | null>('hplc');
-
   return (
-    <div className="nl-new-landing rg-page">
+    <div className="nl-new-landing rg-page rg-atelier">
       <SEO
         title={RESEARCH_GATEWAY_SEO.title}
         description={RESEARCH_GATEWAY_SEO.description}
         keywords={RESEARCH_GATEWAY_SEO.keywords}
       />
 
-      <main id="main-content" className="relative pt-16 sm:pt-20 lg:pt-24">
-        <ResearchHero />
-
-        <VerificationSection />
-
-        <div className="rg-trustpilot-wrap">
+      <main id="main-content" className="ra-main">
+        <Hero />
+        <ProofBento />
+        <Process />
+        <div className="ra-trustpilot">
           <TrustpilotReviews variant="landing" />
         </div>
-
-        <PeptideKnowledgeSection />
-
-        <section id="approach" className="rg-section rg-section--alt">
-          <div className="rg-container">
-            <div className="rg-section-header">
-              <p className="rg-eyebrow">What&apos;s on your COA</p>
-              <h2 className="rg-heading">Three lines on every certificate.</h2>
-              <p className="rg-lead mx-auto">
-                Tested independently by <OzcaniumAnalyticsName /> — HPLC purity, LC-MS identity, and net peptide
-                content on each batch COA.
-              </p>
-            </div>
-            <div className="rg-approach-grid rg-approach-grid--coa">
-              {APPROACH.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <article key={item.title} className="rg-approach-card">
-                    <div className="rg-approach-icon">
-                      <Icon className="w-5 h-5 text-[#8B5CF6]" strokeWidth={1.75} />
-                    </div>
-                    <h3 className="rg-card-title">{item.title}</h3>
-                    <p className="rg-card-text">{item.text}</p>
-                  </article>
-                );
-              })}
-            </div>
-            <p className="rg-section-note">Lab results as published — we do not round or rewrite them.</p>
-          </div>
-        </section>
-
-        <section id="process" className="rg-section">
-          <div className="rg-container">
-            <div className="rg-section-header">
-              <p className="rg-eyebrow">Testing protocol</p>
-              <h2 className="rg-heading">From sample to published COA.</h2>
-              <p className="rg-lead mx-auto">
-                Nothing lists until HPLC, LC-MS, and the content assay all pass. Four steps, one batch ID.
-              </p>
-            </div>
-            <div className="rg-steps">
-              {VERIFY_STEPS.map((step) => (
-                <article key={step.step} className="rg-step">
-                  <span className="rg-step-num">{step.step}</span>
-                  <h3 className="rg-card-title">{step.title}</h3>
-                  <p className="rg-card-text">{step.text}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="rg-section rg-section--alt">
-          <div className="rg-container">
-            <div className="rg-section-header">
-              <p className="rg-eyebrow">Compare</p>
-              <h2 className="rg-heading">What most COAs leave out.</h2>
-              <p className="rg-lead mx-auto">
-                A single HPLC line is common. Identity confirmation, fill-weight assay, and per-batch publishing
-                are not.
-              </p>
-            </div>
-            <div className="rg-compare-wrap">
-              <table className="rg-compare">
-                <thead>
-                  <tr>
-                    <th scope="col">Criteria</th>
-                    <th scope="col" className="rg-compare-us">
-                      PEPLAB
-                    </th>
-                    <th scope="col">Typical suppliers</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {COMPARE_ROWS.map((row) => (
-                    <tr key={row.id}>
-                      <td>{row.label}</td>
-                      <td>{row.us ? <Check className="rg-check yes" /> : '—'}</td>
-                      <td>{row.them ? <Check className="rg-check yes" /> : '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-        <section className="rg-section rg-section--alt">
-          <div className="rg-container">
-            <div className="rg-section-header">
-              <p className="rg-eyebrow">Resources</p>
-              <h2 className="rg-heading">Where to go next.</h2>
-            </div>
-            <div className="rg-resource-grid">
-              <a href={coaArchiveUrl()} className="rg-resource-card">
-                <span className="rg-resource-num">01</span>
-                <h3 className="rg-card-title">COA archive</h3>
-                <p className="rg-card-text">
-                  Look up any batch by ID — HPLC, LC-MS, and assay results are all there before you order.
-                </p>
-                <span className="rg-resource-link">
-                  Open COA archive <ArrowRight className="w-3.5 h-3.5" />
-                </span>
-              </a>
-              <a href={shopPageUrl()} className="rg-resource-card">
-                <span className="rg-resource-num">02</span>
-                <h3 className="rg-card-title">Research catalogue</h3>
-                <p className="rg-card-text">
-                  Full listing with batch COAs linked from each product page.
-                </p>
-                <span className="rg-resource-link">
-                  View catalogue <ArrowRight className="w-3.5 h-3.5" />
-                </span>
-              </a>
-              <a href={shopPageUrl()} className="rg-resource-card">
-                <span className="rg-resource-num">03</span>
-                <h3 className="rg-card-title">Shop &amp; dispatch</h3>
-                <p className="rg-card-text">
-                  Mon–Fri same-day dispatch on AusPost Express. Batch ID on your packing slip.
-                </p>
-                <span className="rg-resource-link">
-                  Go to shop <ArrowRight className="w-3.5 h-3.5" />
-                </span>
-              </a>
-            </div>
-          </div>
-        </section>
-
-        <FaqOrderSection openFaq={openFaq} setOpenFaq={setOpenFaq} />
-
+        <Faq />
+        <Closing />
         <LandingFooter hideCta />
       </main>
     </div>
