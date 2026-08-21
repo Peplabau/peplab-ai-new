@@ -36,6 +36,7 @@ import { SEO } from '@/components/SEO';
 import { generateOrderNumberForCheckout, generatePreorderOrderNumberForCheckout } from '@/lib/orderNumber';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import { formatOrderNumberDisplay } from '@/utils/order-number';
+import { trackGoogleAdsPurchase } from '@/lib/google-ads';
 import { getMarketingBundleOffLabel, productExcludesVolumeBundle } from '@/utils/pricing';
 import {
   calculatePurchasePoints,
@@ -482,6 +483,7 @@ export default function Checkout() {
       }
 
       clearCart();
+      trackGoogleAdsPurchase(finalOrderTotal, newOrderNumber);
       setOrderComplete(true);
     } catch (err) {
       console.error('Order submission error:', err);
