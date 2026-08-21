@@ -17,7 +17,6 @@ export const PEPTIDE_AUSTRALIA_SEO_KEYWORDS = [
   'order bpc 157',
   'bpc 157 10mg',
   'bpc 157 purchase',
-  'ghk peptide',
   'tb 500 and bpc 157',
   'bpc 157 5mg',
   'bpc 157 reviews',
@@ -34,7 +33,6 @@ export const PEPTIDE_AUSTRALIA_SEO_KEYWORDS = [
 
 export const CORE_SITE_SEO_KEYWORDS = [
   'buy peptides Australia',
-  'GHK-Cu Australia',
   'Retatrutide Australia',
   'Semaglutide peptide Australia',
   'Tirzepatide Australia',
