@@ -4,6 +4,10 @@
  */
 
 export const GOOGLE_ADS_SEND_TO = 'AW-18402839116/I_wlCN6pxOUcEMyUlMdE';
+export const GOOGLE_ADS_PURCHASE_SEND_TO = [
+  GOOGLE_ADS_SEND_TO,
+  'AW-18406019358/Oe5BCLW3leccEJ6i1shE',
+] as const;
 
 const TRACKED_ORDERS_KEY = 'peplab_gads_purchase_ids';
 
@@ -41,8 +45,7 @@ export function trackGoogleAdsPurchase(value: number, transactionId: string): vo
   if (typeof window === 'undefined' || !transactionId) return;
   if (alreadyTracked(transactionId)) return;
 
-  const payload = {
-    send_to: GOOGLE_ADS_SEND_TO,
+  const base = {
     value: Number(value.toFixed(2)),
     currency: 'AUD',
     transaction_id: transactionId,
@@ -50,14 +53,16 @@ export function trackGoogleAdsPurchase(value: number, transactionId: string): vo
 
   markTracked(transactionId);
 
-  if (typeof window.gtag === 'function') {
-    window.gtag('event', 'conversion', payload);
-    return;
+  for (const send_to of GOOGLE_ADS_PURCHASE_SEND_TO) {
+    const payload = { send_to, ...base };
+    if (typeof window.gtag === 'function') {
+      window.gtag('event', 'conversion', payload);
+    } else {
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({
+        event: 'conversion',
+        ...payload,
+      });
+    }
   }
-
-  window.dataLayer = window.dataLayer || [];
-  window.dataLayer.push({
-    event: 'conversion',
-    ...payload,
-  });
 }
