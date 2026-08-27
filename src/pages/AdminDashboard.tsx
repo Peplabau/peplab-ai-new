@@ -6658,7 +6658,7 @@ function SettingsSection() {
           Landing Page Control
         </h3>
         <p className="text-xs text-[#A9B3C7] mb-5">
-          Turn the homepage on or off. When off, visitors must log in to access the shop homepage.
+          Turn the public storefront on or off. When off, visitors see a coming soon page. Admin login and dashboard stay available so you can turn it back on.
         </p>
         <div className="flex items-center justify-between p-4 rounded-xl bg-[rgba(7,10,18,0.5)] border border-[rgba(244,246,250,0.08)]">
           <div>
@@ -6666,7 +6666,7 @@ function SettingsSection() {
             <p className="text-xs text-[#A9B3C7] mt-0.5">
               {landingPageSettings.enabled
                 ? 'Active — homepage is visible to everyone'
-                : 'Disabled — homepage requires customer login'}
+                : 'Disabled — visitors see coming soon'}
             </p>
           </div>
           <button
