@@ -6,6 +6,14 @@
     <meta name="theme-color" content="#070A12" />
     <meta name="color-scheme" content="dark" />
 
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-WDZMTMVQ');</script>
+    <!-- End Google Tag Manager -->
+
     <!-- Critical paint — dark shell before JS/CSS bundles load (prevents mobile FOUC) -->
     <style>
       html { background-color: #070A12; color-scheme: dark; }
@@ -198,6 +206,10 @@
     </script>
   </head>
   <body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WDZMTMVQ"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
     <div id="root"></div>
     <!--
       Inline loading shell — outside #root so React never auto-removes it.
