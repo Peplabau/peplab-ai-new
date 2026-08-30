@@ -28,6 +28,11 @@ function cssFirstPlugin(): Plugin {
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "")
+  // Optional HTML placeholder — empty means full shop (peplab.ai). Avoids Vite
+  // "is not defined in env variables found in /index.html" when .env omits it.
+  if (process.env.VITE_LOGIN_ONLY_HOSTS == null && env.VITE_LOGIN_ONLY_HOSTS == null) {
+    process.env.VITE_LOGIN_ONLY_HOSTS = ""
+  }
 
   const devResendProxy =
     mode === "development" && env.VITE_RESEND_API_KEY

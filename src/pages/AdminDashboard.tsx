@@ -10,6 +10,7 @@ import {
   TrendingUp, BarChart2, FlaskConical, Cake, AlertTriangle, CheckSquare, Square, Clock
 } from 'lucide-react';
 import { supabase, getCurrentUser, signOut } from '@/lib/supabase';
+import { getAdminAccess, grantLandingAccess, setLandingPageEnabled, type AdminAccess } from '@/lib/admin-access';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cached, invalidateCache, setCache, TTL_ADMIN_OVERVIEW, TTL_ADMIN_ORDERS, TTL_ADMIN_PRODUCTS } from '@/lib/cache';
 import { CONFIG } from '@/lib/config';
@@ -481,6 +482,7 @@ export default function AdminDashboard() {
     parseAdminTabParam(searchParams.get('tab')),
   );
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminAccess, setAdminAccess] = useState<AdminAccess>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [adminEmail, setAdminEmail] = useState('');
 
@@ -502,9 +504,13 @@ export default function AdminDashboard() {
 
   // Keep tab in sync if the URL changes (back/forward / hard reload).
   useEffect(() => {
+    if (adminAccess === 'landing') {
+      setActiveTabState('settings');
+      return;
+    }
     const fromUrl = parseAdminTabParam(searchParams.get('tab'));
     setActiveTabState((prev) => (prev === fromUrl ? prev : fromUrl));
-  }, [searchParams]);
+  }, [searchParams, adminAccess]);
 
   useEffect(() => {
     const checkAdminAccess = async () => {
@@ -517,22 +523,17 @@ export default function AdminDashboard() {
 
         setAdminEmail(user.email || '');
 
-        if (user.user_metadata?.role === 'admin') {
+        const access = await getAdminAccess(user.id);
+        if (access) {
+          setAdminAccess(access);
           setIsAdmin(true);
+          if (access === 'landing') {
+            setActiveTabState('settings');
+          }
           return;
         }
 
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', user.id)
-          .single();
-
-        if (profile?.is_admin) {
-          setIsAdmin(true);
-        } else {
-          window.location.href = '/';
-        }
+        window.location.href = '/';
       } catch (error) {
         console.error('[Admin] Auth check failed:', error);
         window.location.href = '/login';
@@ -649,6 +650,10 @@ export default function AdminDashboard() {
     { id: 'promo-codes', label: 'Promo Codes', icon: Tag },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
+  const visibleNav =
+    adminAccess === 'landing'
+      ? [{ id: 'settings' as const, label: 'Landing', icon: Eye }]
+      : navItems;
 
   return (
     <>
@@ -666,7 +671,7 @@ export default function AdminDashboard() {
         </div>
 
         <nav className="p-4 space-y-1">
-          {navItems.map((item) => (
+          {visibleNav.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id as AdminTabId)}
@@ -689,7 +694,7 @@ export default function AdminDashboard() {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-medium text-[#F4F6FA] truncate">{adminEmail.split('@')[0]}</p>
-              <p className="text-xs text-[#2ED1B4]">Administrator</p>
+              <p className="text-xs text-[#2ED1B4]">{adminAccess === 'landing' ? 'Landing access' : 'Administrator'}</p>
             </div>
           </div>
           <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.15)] text-[#EF4444] hover:bg-[rgba(239,68,68,0.2)] transition-colors text-sm font-medium">
@@ -704,11 +709,11 @@ export default function AdminDashboard() {
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-8 h-8 rounded-lg bg-[rgba(46,209,180,0.15)] flex items-center justify-center shrink-0">
-              {(() => { const n = navItems.find(n => n.id === activeTab); return n ? <n.icon className="w-4 h-4 text-[#2ED1B4]" /> : null; })()}
+              {(() => { const n = visibleNav.find(n => n.id === activeTab); return n ? <n.icon className="w-4 h-4 text-[#2ED1B4]" /> : null; })()}
             </div>
             <div className="min-w-0">
               <p className="text-sm font-bold text-[#F4F6FA] truncate">
-                {navItems.find(n => n.id === activeTab)?.label}
+                {visibleNav.find(n => n.id === activeTab)?.label}
               </p>
               <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-[#2ED1B4]">PEPLAB ADMIN</p>
             </div>
@@ -726,7 +731,7 @@ export default function AdminDashboard() {
       {/* Mobile Bottom Nav */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-[rgba(17,24,39,0.97)] border-t border-[rgba(244,246,250,0.08)] backdrop-blur-sm safe-area-bottom">
         <div className="flex justify-around px-1 py-1">
-          {navItems.map((item) => {
+          {visibleNav.map((item) => {
             const isActive = activeTab === item.id;
             return (
               <button
@@ -775,7 +780,9 @@ export default function AdminDashboard() {
           {/* Affiliates tab disabled — see navItems comment above. */}
           {/* {activeTab === 'affiliates' && <AffiliatesSection />} */}
           {activeTab === 'promo-codes' && <PromoCodesSection />}
-          {activeTab === 'settings' && <SettingsSection />}
+          {activeTab === 'settings' && (
+            <SettingsSection access={adminAccess === 'landing' ? 'landing' : 'full'} />
+          )}
         </div>
       </main>
     </div>
@@ -5149,6 +5156,10 @@ function UsersSection() {
   const [birthdayDraft, setBirthdayDraft] = useState('');
   const [birthdaySaving, setBirthdaySaving] = useState(false);
   const [birthdayError, setBirthdayError] = useState<string | null>(null);
+  const [landingGrantBusyId, setLandingGrantBusyId] = useState<string | null>(null);
+  const [landingGrantEmail, setLandingGrantEmail] = useState('');
+  const [landingGrantName, setLandingGrantName] = useState('Sufyan');
+  const [landingGrantMessage, setLandingGrantMessage] = useState<string | null>(null);
   const loadUsersRequestIdRef = useRef(0);
   const loadMoreLockRef = useRef(false);
   const rawOffsetRef = useRef(0);
@@ -5466,6 +5477,33 @@ function UsersSection() {
     }
   };
 
+  const handleLandingAccess = async (email: string, enabled: boolean, fullName?: string, userId?: string) => {
+    const key = userId || email;
+    setLandingGrantBusyId(key);
+    setLandingGrantMessage(null);
+    try {
+      const result = await grantLandingAccess(email, enabled, fullName);
+      if (!result.ok) {
+        setLandingGrantMessage(result.error || 'Could not update landing access.');
+        return;
+      }
+      setLandingGrantMessage(
+        enabled
+          ? `Landing access granted to ${fullName || email}. They can sign in and open Admin → Landing.`
+          : `Landing access removed from ${email}.`,
+      );
+      setUsers((prev) =>
+        prev.map((u) =>
+          (userId && u.id === userId) || (u.email || '').toLowerCase() === email.toLowerCase()
+            ? { ...u, can_manage_landing: enabled, full_name: fullName || u.full_name }
+            : u,
+        ),
+      );
+    } finally {
+      setLandingGrantBusyId(null);
+    }
+  };
+
   // Search is applied while paging from the RPC; list is already filtered.
   const filteredUsers = users;
 
@@ -5510,6 +5548,40 @@ function UsersSection() {
       <div className="relative">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#A9B3C7]" />
         <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search users..." className="w-full pl-12 pr-4 py-3 rounded-xl bg-[rgba(7,10,18,0.6)] border border-[rgba(244,246,250,0.1)] text-[#F4F6FA] placeholder-[#A9B3C7] focus:outline-none focus:border-[#2ED1B4]" />
+      </div>
+
+      <div className="p-4 rounded-2xl bg-gradient-to-br from-[rgba(59,130,246,0.1)] to-[rgba(139,92,246,0.1)] border border-[rgba(59,130,246,0.2)] space-y-3">
+        <h3 className="text-sm font-semibold text-[#F4F6FA]">Landing page access</h3>
+        <p className="text-xs text-[#A9B3C7]">
+          They must already have an account. Granting this only lets them turn the public landing page on or off — not orders, users, or other settings.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <input
+            type="text"
+            value={landingGrantName}
+            onChange={(e) => setLandingGrantName(e.target.value)}
+            placeholder="Name"
+            className="px-3 py-2 rounded-lg bg-[rgba(7,10,18,0.5)] border border-[rgba(244,246,250,0.1)] text-[#F4F6FA] text-sm"
+          />
+          <input
+            type="email"
+            value={landingGrantEmail}
+            onChange={(e) => setLandingGrantEmail(e.target.value)}
+            placeholder="sufyan@email.com"
+            className="px-3 py-2 rounded-lg bg-[rgba(7,10,18,0.5)] border border-[rgba(244,246,250,0.1)] text-[#F4F6FA] text-sm"
+          />
+          <button
+            type="button"
+            disabled={!landingGrantEmail.trim() || landingGrantBusyId === landingGrantEmail.trim()}
+            onClick={() => void handleLandingAccess(landingGrantEmail.trim(), true, landingGrantName.trim() || 'Sufyan')}
+            className="px-3 py-2 rounded-lg bg-[#3B82F6] text-white text-sm font-medium disabled:opacity-50"
+          >
+            Grant landing access
+          </button>
+        </div>
+        {landingGrantMessage && (
+          <p className="text-xs text-[#A9B3C7]">{landingGrantMessage}</p>
+        )}
       </div>
 
       {pointsModal && (
@@ -5622,6 +5694,9 @@ function UsersSection() {
                       <p className="font-medium text-[#F4F6FA] text-sm truncate">{user.full_name || user.email}</p>
                       {user.is_banned && <span className="px-1.5 py-0.5 rounded bg-[#EF4444] text-white text-[9px] font-bold">BANNED</span>}
                       {user.is_admin && <span className="px-1.5 py-0.5 rounded bg-[#8B5CF6] text-white text-[9px] font-bold">ADMIN</span>}
+                      {user.can_manage_landing && !user.is_admin && (
+                        <span className="px-1.5 py-0.5 rounded bg-[#3B82F6] text-white text-[9px] font-bold">LANDING</span>
+                      )}
                     </div>
                     <p className="text-xs text-[#A9B3C7] truncate mt-0.5">{user.email}</p>
                     {user.date_of_birth ? (
@@ -5642,6 +5717,25 @@ function UsersSection() {
                 </div>
                 {/* Action buttons row */}
                 <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                  {!user.is_admin && (
+                    <button
+                      type="button"
+                      disabled={landingGrantBusyId === user.id}
+                      onClick={() =>
+                        void handleLandingAccess(
+                          user.email,
+                          !user.can_manage_landing,
+                          user.full_name || undefined,
+                          user.id,
+                        )
+                      }
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[#3B82F6] bg-[rgba(59,130,246,0.08)] hover:bg-[rgba(59,130,246,0.15)] text-xs font-medium transition-colors disabled:opacity-50"
+                      title="Landing page on/off access"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      {user.can_manage_landing ? 'Remove landing' : 'Give landing'}
+                    </button>
+                  )}
                   <button type="button" onClick={() => setPointsModal({ user, mode: 'add' })} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[#22C55E] bg-[rgba(34,197,94,0.08)] hover:bg-[rgba(34,197,94,0.15)] text-xs font-medium transition-colors" title="Add points">
                     <PlusCircle className="w-3.5 h-3.5" /> Add pts
                   </button>
@@ -6645,7 +6739,8 @@ function PromoCodesSection() {
   );
 }
 
-function SettingsSection() {
+function SettingsSection({ access = 'full' }: { access?: 'full' | 'landing' }) {
+  const landingOnly = access === 'landing';
   const [bankDetails, setBankDetails] = useState(DEFAULT_BANK_DETAILS);
   const [discountSettings, setDiscountSettings] = useState(DEFAULT_DISCOUNT_SETTINGS);
   const [freeGiftSettings, setFreeGiftSettings] = useState(DEFAULT_FREE_GIFT_SETTINGS);
@@ -6696,16 +6791,21 @@ function SettingsSection() {
     setIsSaving(true);
     setSaveMessage('');
     try {
-      await Promise.all([
-        updateSiteSetting('bank_details', bankDetails),
-        updateSiteSetting('discount_settings', discountSettings),
-        updateSiteSetting('free_gift_settings', freeGiftSettings),
-        updateSiteSetting('telegram_link', { url: supportLinks.telegram_link }),
-        updateSiteSetting('whatsapp_link', { url: supportLinks.whatsapp_link }),
-        updateSiteSetting('landing_page_settings', landingPageSettings),
-        updateSiteSetting('affiliate_program_settings', affiliateProgramSettings),
-        updateSiteSetting('research_disclaimer_settings', researchDisclaimerSettings),
-      ]);
+      if (landingOnly) {
+        const result = await setLandingPageEnabled(landingPageSettings.enabled !== false);
+        if (!result.ok) throw new Error(result.error);
+      } else {
+        await Promise.all([
+          updateSiteSetting('bank_details', bankDetails),
+          updateSiteSetting('discount_settings', discountSettings),
+          updateSiteSetting('free_gift_settings', freeGiftSettings),
+          updateSiteSetting('telegram_link', { url: supportLinks.telegram_link }),
+          updateSiteSetting('whatsapp_link', { url: supportLinks.whatsapp_link }),
+          updateSiteSetting('landing_page_settings', landingPageSettings),
+          updateSiteSetting('affiliate_program_settings', affiliateProgramSettings),
+          updateSiteSetting('research_disclaimer_settings', researchDisclaimerSettings),
+        ]);
+      }
       setSaveMessage('Settings saved successfully!');
       setTimeout(() => setSaveMessage(''), 3000);
     } catch (error) {
@@ -6753,7 +6853,7 @@ function SettingsSection() {
         </button>
       </div>
       {/* Bank Transfer Details */}
-      <div className="p-6 rounded-2xl bg-gradient-to-br from-[rgba(46,209,180,0.1)] to-[rgba(139,92,246,0.1)] border border-[rgba(46,209,180,0.2)]">
+      {!landingOnly && <div className="p-6 rounded-2xl bg-gradient-to-br from-[rgba(46,209,180,0.1)] to-[rgba(139,92,246,0.1)] border border-[rgba(46,209,180,0.2)]">
         <h3 className="text-lg font-semibold text-[#F4F6FA] mb-4 flex items-center gap-2">
           <CreditCard className="w-5 h-5 text-[#2ED1B4]" />
           Bank Transfer Details
@@ -6805,7 +6905,7 @@ function SettingsSection() {
             />
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Landing Page Control */}
       <div className="p-6 rounded-2xl bg-gradient-to-br from-[rgba(59,130,246,0.1)] to-[rgba(139,92,246,0.1)] border border-[rgba(59,130,246,0.2)]">
@@ -6839,6 +6939,8 @@ function SettingsSection() {
         </div>
       </div>
 
+      {!landingOnly && (
+      <>
       {/* Shop research disclaimer banner */}
       <div className="p-6 rounded-2xl bg-gradient-to-br from-[rgba(239,68,68,0.1)] to-[rgba(17,24,39,0.6)] border border-[rgba(239,68,68,0.25)]">
         <h3 className="text-lg font-semibold text-[#F4F6FA] mb-1 flex items-center gap-2">
@@ -7216,6 +7318,8 @@ function SettingsSection() {
           </p>
         </div>
       </div>
+      </>
+      )}
 
       {/* Save Button */}
       <div className="space-y-3">
@@ -7235,7 +7339,7 @@ function SettingsSection() {
           className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-[#2ED1B4] text-white hover:bg-[#25b89d] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 font-semibold transition-all"
         >
           <Save className="w-5 h-5" />
-          {isSaving ? 'Saving...' : 'Save All Settings'}
+          {isSaving ? 'Saving...' : landingOnly ? 'Save landing setting' : 'Save All Settings'}
         </button>
       </div>
 

@@ -170,11 +170,15 @@ function ShopRouteLoading() {
  */
 function PublicComingSoonGate({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
-  const isAdmin = pathname.startsWith('/admin');
-  const [mode, setMode] = useState<'loading' | 'live' | 'soon'>(isAdmin ? 'live' : 'loading');
+  const authOpen =
+    pathname.startsWith('/admin') ||
+    pathname === '/login' ||
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password';
+  const [mode, setMode] = useState<'loading' | 'live' | 'soon'>(authOpen ? 'live' : 'loading');
 
   useEffect(() => {
-    if (isAdmin) {
+    if (authOpen) {
       setMode('live');
       return;
     }
@@ -192,9 +196,9 @@ function PublicComingSoonGate({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [isAdmin]);
+  }, [authOpen]);
 
-  if (isAdmin) return <>{children}</>;
+  if (authOpen) return <>{children}</>;
   if (mode === 'loading') return <ShopRouteLoading />;
   if (mode === 'soon') return <ComingSoon />;
   return <>{children}</>;

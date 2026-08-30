@@ -1,4 +1,5 @@
 import { SHOP_PATH } from '@/lib/routes';
+import { getAdminAccess } from '@/lib/admin-access';
 import { DEFAULT_LANDING_PAGE_SETTINGS, getSiteSetting } from '@/lib/settings';
 
 const DASHBOARD_PATH = '/dashboard';
@@ -21,9 +22,17 @@ export async function isLandingPageEnabled(): Promise<boolean> {
 }
 
 /** Where to send a customer after login, based on admin landing toggle and ?redirect=. */
-export async function resolvePostLoginPath(redirectParam: string | null | undefined): Promise<string> {
+export async function resolvePostLoginPath(
+  redirectParam: string | null | undefined,
+  userId?: string | null,
+): Promise<string> {
   const safeRedirect = sanitizeRedirectPath(redirectParam ?? null);
   if (safeRedirect) return safeRedirect;
+
+  if (userId) {
+    const access = await getAdminAccess(userId);
+    if (access === 'landing') return '/admin/dashboard';
+  }
 
   const landingEnabled = await isLandingPageEnabled();
   return landingEnabled ? DASHBOARD_PATH : SHOP_PATH;

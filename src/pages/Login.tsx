@@ -47,7 +47,8 @@ export default function Login() {
   useRewards();
 
   const redirectAfterLogin = useCallback(async () => {
-    const destination = await resolvePostLoginPath(searchParams.get('redirect'));
+    const user = await getCurrentUser();
+    const destination = await resolvePostLoginPath(searchParams.get('redirect'), user?.id);
     navigate(destination);
   }, [navigate, searchParams]);
 

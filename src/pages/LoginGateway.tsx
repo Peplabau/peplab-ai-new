@@ -110,7 +110,6 @@ export default function LoginGateway() {
   };
 
   const redirectAfterAuth = useCallback(async () => {
-    const destination = await resolvePostLoginPath(searchParams.get('redirect'));
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -121,6 +120,7 @@ export default function LoginGateway() {
       return;
     }
 
+    const destination = await resolvePostLoginPath(searchParams.get('redirect'), session.user.id);
     navigate(destination, { replace: true });
   }, [navigate, searchParams]);
 

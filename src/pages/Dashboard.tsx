@@ -16,7 +16,8 @@ import {
   BONUS_POINTS,
 } from '@/context/RewardsContext';
 import { supabase, signOut, getCurrentUser } from '@/lib/supabase';
-import { getUserOrders, getUserReviews, createReview, uploadReviewImage, getProductUuidBySlug, getUserReviewCount, checkIsAdmin, type OrderFromDB, type UserReview } from '@/lib/supabase-db';
+import { getUserOrders, getUserReviews, createReview, uploadReviewImage, getProductUuidBySlug, getUserReviewCount, type OrderFromDB, type UserReview } from '@/lib/supabase-db';
+import { getAdminAccess } from '@/lib/admin-access';
 import { useAffiliate } from '@/context/AffiliateContext';
 import { createOrUpdatePromoterForUser } from '@/lib/affiliates';
 import { invalidateCache } from '@/lib/cache';
@@ -86,7 +87,8 @@ export default function Dashboard() {
       navigate('/login');
       return;
     }
-    const admin = await checkIsAdmin(currentUser.id);
+    const access = await getAdminAccess(currentUser.id);
+    const admin = access === 'full' || access === 'landing';
     setIsAdminUser(admin);
     if (admin) localStorage.setItem('peplab_is_admin', 'true');
     else localStorage.removeItem('peplab_is_admin');
