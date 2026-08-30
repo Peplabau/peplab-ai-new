@@ -7,9 +7,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { CartProvider } from '@/context/CartContext';
 import { RewardsProvider } from '@/context/RewardsContext';
 import { AffiliateProvider } from '@/context/AffiliateContext';
-// `DEFAULT_LANDING_PAGE_SETTINGS` was used by the ShopRoute homepage-gate check
-// (now commented out below). Import kept out of the tree until re-enabled.
-import { getSiteSetting, DEFAULT_AFFILIATE_PROGRAM_SETTINGS } from '@/lib/settings';
+import { getSiteSetting, DEFAULT_AFFILIATE_PROGRAM_SETTINGS, DEFAULT_LANDING_PAGE_SETTINGS } from '@/lib/settings';
 import { supabase } from '@/lib/supabase';
 import Navigation from '@/components/Navigation';
 import CartDrawer from '@/components/CartDrawer';
@@ -55,6 +53,7 @@ const Calculator = lazy(() => import('@/pages/Calculator'));
 const Protocols = lazy(() => import('@/pages/Protocols'));
 const CoaArchive = lazy(() => import('@/pages/CoaArchive'));
 const PeplabLandingRoute = lazy(() => import('@/pages/PeplabLandingRoute'));
+const ComingSoon = lazy(() => import('@/pages/ComingSoon'));
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -156,66 +155,50 @@ function HomePage() {
   );
 }
 
-// The homepage / shop is always publicly viewable on the storefront.
-//
-// The `landing_page_settings.enabled` toggle in the admin panel used to gate
-// this route (redirecting anonymous visitors to /login when disabled). We
-// intentionally bypass that check now — the setting is still writable from
-// admin so nothing there breaks, but it no longer affects the storefront.
-//
-// The original gating logic is preserved below (commented out) so it can be
-// restored quickly if the requirement changes.
-//
-// type ShopRouteGate = 'loading' | 'public' | 'authed' | 'login';
-//
-// function ShopRouteLoading() {
-//   return (
-//     <div style={PAGE_SHELL_STYLE} className="flex items-center justify-center">
-//       <div className="w-8 h-8 border-2 border-[#2ED1B4] border-t-transparent rounded-full animate-spin" />
-//     </div>
-//   );
-// }
-//
-// function ShopRoute() {
-//   const [gate, setGate] = useState<ShopRouteGate>('loading');
-//
-//   useEffect(() => {
-//     let cancelled = false;
-//     const loadGate = async () => {
-//       try {
-//         const [settings, { data: { session } }] = await Promise.all([
-//           getSiteSetting('landing_page_settings', DEFAULT_LANDING_PAGE_SETTINGS),
-//           supabase.auth.getSession(),
-//         ]);
-//         if (cancelled) return;
-//
-//         const landingEnabled = settings.enabled !== false;
-//         const isLoggedIn = Boolean(session?.user);
-//
-//         if (landingEnabled) {
-//           setGate('public');
-//         } else if (isLoggedIn) {
-//           setGate('authed');
-//         } else {
-//           setGate('login');
-//         }
-//       } catch (error) {
-//         console.error('Failed to load shop route gate:', error);
-//         if (!cancelled) setGate('public');
-//       }
-//     };
-//     loadGate();
-//     return () => {
-//       cancelled = true;
-//     };
-//   }, []);
-//
-//   if (gate === 'loading') return <ShopRouteLoading />;
-//   if (gate === 'login') {
-//     return <Navigate to={`/login?redirect=${encodeURIComponent(SHOP_PATH)}`} replace />;
-//   }
-//   return <HomePage />;
-// }
+function ShopRouteLoading() {
+  return (
+    <div style={PAGE_SHELL_STYLE} className="flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-[#2ED1B4] border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
+/**
+ * peplab.ai: when the admin landing toggle is off, the public storefront
+ * shows Coming Soon. Admin routes stay live so the site can be turned back on.
+ * Login redirect for a disabled landing page is peplab.com.au only.
+ */
+function PublicComingSoonGate({ children }: { children: React.ReactNode }) {
+  const { pathname } = useLocation();
+  const isAdmin = pathname.startsWith('/admin');
+  const [mode, setMode] = useState<'loading' | 'live' | 'soon'>(isAdmin ? 'live' : 'loading');
+
+  useEffect(() => {
+    if (isAdmin) {
+      setMode('live');
+      return;
+    }
+    let cancelled = false;
+    setMode('loading');
+    getSiteSetting('landing_page_settings', DEFAULT_LANDING_PAGE_SETTINGS)
+      .then((settings) => {
+        if (cancelled) return;
+        setMode(settings.enabled !== false ? 'live' : 'soon');
+      })
+      .catch((error) => {
+        console.error('Failed to load landing page setting:', error);
+        if (!cancelled) setMode('live');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin]);
+
+  if (isAdmin) return <>{children}</>;
+  if (mode === 'loading') return <ShopRouteLoading />;
+  if (mode === 'soon') return <ComingSoon />;
+  return <>{children}</>;
+}
 
 function ShopRoute() {
   return <HomePage />;
@@ -534,11 +517,12 @@ function App() {
         <AffiliateProvider>
         <BrowserRouter>
           <ScrollToTop />
-          {CONFIG.FEATURES.ENABLE_SIGNUP_WELCOME_MODAL && <SignupWelcomeModal />}
-          <PersistReferralRef />
-          <StaleTabReloader />
           <Suspense fallback={<div style={PAGE_SHELL_STYLE} />}>
-            <Routes>
+            <PublicComingSoonGate>
+              {CONFIG.FEATURES.ENABLE_SIGNUP_WELCOME_MODAL && <SignupWelcomeModal />}
+              <PersistReferralRef />
+              <StaleTabReloader />
+              <Routes>
               <Route path="/" element={<ShopRoute />} />
               <Route path="/shop" element={<ShopRoute />} />
               <Route path="/landing" element={<PeplabLandingRoute />} />
@@ -571,6 +555,7 @@ function App() {
               <Route path="/track-order" element={<TrackOrder />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </PublicComingSoonGate>
           </Suspense>
         </BrowserRouter>
         </AffiliateProvider>
