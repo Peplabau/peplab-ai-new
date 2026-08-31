@@ -1,5 +1,5 @@
 /**
- * Marketing landing at /landing — Research Gateway (atelier).
+ * Marketing landing at /landing — Research Gateway with the new product hero.
  */
 import '@/landing/index.css';
 import '@/landing/research-atelier.css';
