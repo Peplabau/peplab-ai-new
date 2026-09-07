@@ -2,10 +2,10 @@
  * LoginGateway — entry pages on the login-only host (peplab.com.au / staging.*).
  *
  * Sign-in for returning members; sign-up with referral verification for new members.
- * After auth, members stay on this domain with full shop access.
+ * After auth, members are handed off to peplab.ai (the shop is not on this domain).
  */
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Mail,
   Lock,
@@ -28,7 +28,7 @@ import {
 import { supabase, signIn, signUp, getCurrentUser } from '@/lib/supabase';
 import { checkIsAdmin } from '@/lib/supabase-db';
 import { sendSignUpWelcome } from '@/lib/email';
-import { resolvePostLoginPath } from '@/lib/login-redirect';
+import { handoffToMainApp, resolvePostLoginPath } from '@/lib/login-redirect';
 import { SEO } from '@/components/SEO';
 import { LOGIN_GATEWAY_PAGE_TITLE, MAIN_APP_ORIGIN } from '@/lib/domain';
 import { getSiteSetting, DEFAULT_SUPPORT_LINKS } from '@/lib/settings';
@@ -58,7 +58,6 @@ function friendlyAuthErrorMessage(raw: string | undefined | null): string {
 }
 
 export default function LoginGateway() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isSignUp =
     (typeof window !== 'undefined' && window.location.pathname === '/signup') ||
@@ -121,8 +120,8 @@ export default function LoginGateway() {
     }
 
     const destination = await resolvePostLoginPath(searchParams.get('redirect'), session.user.id);
-    navigate(destination, { replace: true });
-  }, [navigate, searchParams]);
+    await handoffToMainApp(destination);
+  }, [searchParams]);
 
   useEffect(() => {
     let cancelled = false;
